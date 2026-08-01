@@ -56,6 +56,10 @@ tr.cardrow{background:#fbfbff}
 .cardov{width:104px;text-align:right;border:1px dashed #a5b4fc!important;border-radius:6px;background:#fff}
 .cardov::placeholder{color:#b6bdf2}
 .pos{color:var(--green)}.neg{color:var(--red)}
+tr.addrow td{background:#f8fafc;padding:5px 6px}
+tr.addrow input,tr.addrow select{width:100%;font-size:12px;padding:5px 6px}
+tr.addrow td:first-child{border-radius:0 0 0 8px}
+tr.addrow td:last-child{border-radius:0 0 8px 0}
 .mtabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px}
 .calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
 .calgrid .cal-dow{text-align:center;font-size:11px;color:var(--sub);font-weight:600;padding:4px 0}
@@ -122,8 +126,8 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
     </span>
   </h3><div class="chartbox"><canvas id="chMonthly"></canvas></div></div>
   <div class="grid3">
-    <div class="panel"><h3>지출 대분류별 비중 <select id="dashMonthMajor"></select></h3><div class="chartbox"><canvas id="chCatMajor"></canvas></div></div>
-    <div class="panel"><h3>지출 계정별 비중 <select id="dashMonth"></select></h3><div class="chartbox"><canvas id="chCat"></canvas></div></div>
+    <div class="panel"><h3>지출 대분류별 비중 <select id="dashMonthMajor"></select><span class="msel" id="mfCatMajorTier" style="margin-left:6px"></span></h3><div class="chartbox"><canvas id="chCatMajor"></canvas></div></div>
+    <div class="panel"><h3>지출 계정별 비중 <select id="dashMonth"></select><span class="msel" id="mfCatTier" style="margin-left:6px"></span></h3><div class="chartbox"><canvas id="chCat"></canvas></div></div>
     <div class="panel"><h3>지출 수단별 <span class="sub" id="methodScope"></span></h3><div class="chartbox"><canvas id="chMethod"></canvas></div></div>
   </div>
   <div class="panel"><h3>계정별 지출 상세 (연간)</h3><div style="overflow-x:auto"><table id="tblCat"></table></div></div>
@@ -154,6 +158,8 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
     <select id="fAcct"><option value="">전체 계좌</option></select>
     <input type="text" id="fSearch" placeholder="상세내역·비고 검색…" style="flex:1;min-width:140px">
     <button class="btn primary" id="btnAdd">＋ 거래 추가</button>
+  </div>
+  <div class="toolbar">
     <button class="btn" id="btnImport">가져오기(엑셀·CSV)</button>
     <input type="file" id="fileImport" accept=".xlsx,.xls,.csv,.txt" style="display:none">
     <button class="btn" id="btnCsv">CSV 내보내기</button>
@@ -591,6 +597,8 @@ baseDate.onchange = ()=>{
 
 // ---------- dashboard ----------
 let chMonthly, chCat, chMethod, chAsset, chMoM, chCatMajor;
+let CAT_EXCL_TIER = new Set();       // 지출 계정별 비중 도넛(chCat)에서 제외된 지출구분
+let CATMAJOR_EXCL_TIER = new Set();  // 지출 대분류별 비중 도넛(chCatMajor)에서 제외된 지출구분
 // 월별 수입/지출 차트에서 제외할 항목 (빈 Set = 전체 표시). 새로 추가되는 항목은 기본 포함
 let MON_EXCL_INC = new Set();    // 수입 카테고리명
 let MON_EXCL_EXP = new Set();    // 지출 카테고리명
@@ -681,8 +689,10 @@ const LEGEND_SQUARE = {position:'right', labels:{boxWidth:12,boxHeight:12}};
 function renderCatCharts(){
   const sel = document.getElementById('dashMonth').value;
   const selMajor = document.getElementById('dashMonthMajor').value;
-  const txs = yearTx().filter(t=>t.type==='지출' && (sel===''||t.month==sel));
-  const txsMajor = yearTx().filter(t=>t.type==='지출' && (selMajor===''||t.month==selMajor));
+  const txs = yearTx().filter(t=>t.type==='지출' && (sel===''||t.month==sel) && !CAT_EXCL_TIER.has(categoryTier(t.category)));
+  const txsMajor = yearTx().filter(t=>t.type==='지출' && (selMajor===''||t.month==selMajor) && !CATMAJOR_EXCL_TIER.has(categoryTier(t.category)));
+  buildMsel('mfCatTier','지출구분', monTierItems(), CAT_EXCL_TIER);
+  buildMsel('mfCatMajorTier','지출구분', monTierItems(), CATMAJOR_EXCL_TIER);
   document.getElementById('methodScope').textContent = sel===''?'(연간)':`(${sel}월)`;
   const byCat={}, byMethod={}, byMajor={};
   txs.forEach(t=>{
@@ -722,11 +732,40 @@ function renderCatTable(){
     by[k].sum+=+t.amount||0; by[k].cnt++; by[k].months[t.month-1]+=+t.amount||0;
   });
   const total = Object.values(by).reduce((a,x)=>a+x.sum,0)||1;
-  const rows = Object.entries(by).sort((a,b)=>b[1].sum-a[1].sum);
-  let h='<thead><tr><th>계정</th><th class="num">연간 합계</th><th class="num">비중</th><th class="num">건수</th><th class="num">월평균</th></tr></thead><tbody>';
-  rows.forEach(([k,x])=>{
-    const mcnt = x.months.filter(v=>v>0).length||1;
-    h+=`<tr><td>${esc(k)}</td><td class="num">${fmt(x.sum)}</td><td class="num">${(x.sum/total*100).toFixed(1)}%</td><td class="num">${x.cnt}</td><td class="num">${fmt(x.sum/mcnt)}</td></tr>`;
+  // 지출구분(필수/선택/비정기) → 대분류 → 카테고리명 순으로 그룹화, 각각 별도 열로 표시(rowspan 병합)
+  const tierStyle = {'필수':{bg:'#e0e7ff',fg:'#4338ca'}, '선택':{bg:'#dcfce7',fg:'#15803d'}, '비정기':{bg:'#fee2e2',fg:'#b91c1c'}};
+  const tree={};
+  Object.entries(by).forEach(([name,x])=>{
+    const tier = categoryTier(name), major = categoryMajor(name);
+    ((tree[tier]||(tree[tier]={}))[major]||(tree[tier][major]=[])).push([name,x]);
+  });
+  const tierOrder=['필수','선택','비정기'];
+  const tiers = [...tierOrder, ...Object.keys(tree).filter(t=>!tierOrder.includes(t))].filter(t=>tree[t]);
+  let h='<thead><tr><th>지출구분</th><th>분류</th><th>카테고리명</th><th class="num">월평균</th><th class="num">연간 합계</th><th class="num">비중</th></tr></thead><tbody>';
+  tiers.forEach(tier=>{
+    const majorEntries = Object.entries(tree[tier]);
+    const tierSum = majorEntries.reduce((a,[,list])=>a+list.reduce((s,[,x])=>s+x.sum,0),0);
+    const tierRows = majorEntries.reduce((a,[,list])=>a+list.length,0);
+    const st = tierStyle[tier]||{bg:'#f4f5f7',fg:'#374151'};
+    majorEntries.sort((a,b)=>b[1].reduce((s,[,x])=>s+x.sum,0)-a[1].reduce((s,[,x])=>s+x.sum,0));
+    let firstRowOfTier = true;
+    majorEntries.forEach(([major,list])=>{
+      const majorSum = list.reduce((a,[,x])=>a+x.sum,0);
+      list.sort((a,b)=>b[1].sum-a[1].sum);
+      list.forEach(([name,x],idx)=>{
+        const mcnt = x.months.filter(v=>v>0).length||1;
+        h+='<tr>';
+        if(firstRowOfTier){
+          h+=`<td rowspan="${tierRows}" style="background:${st.bg};color:${st.fg};font-weight:700;vertical-align:top;white-space:normal">${esc(tier)}<div class="sub" style="font-weight:400;margin-top:4px;color:${st.fg}">합계 ${fmt(tierSum)}<br>${(tierSum/total*100).toFixed(1)}%</div></td>`;
+          firstRowOfTier=false;
+        }
+        if(idx===0){
+          h+=`<td rowspan="${list.length}" style="background:#fbfbff;font-weight:600;vertical-align:top;white-space:normal">${esc(major)}<div class="sub" style="font-weight:400;margin-top:4px">합계 ${fmt(majorSum)}<br>${(majorSum/total*100).toFixed(1)}%</div></td>`;
+        }
+        h+=`<td>${esc(name)}</td><td class="num">${fmt(x.sum/mcnt)}</td><td class="num">${fmt(x.sum)}</td><td class="num">${(x.sum/total*100).toFixed(1)}%</td>`;
+        h+='</tr>';
+      });
+    });
   });
   document.getElementById('tblCat').innerHTML = h+'</tbody>';
 }
@@ -935,8 +974,82 @@ function renderTx(){
     <td><button class="btn sm" onclick="editTx('${t.id}')">수정</button>
         <button class="btn danger sm" onclick="delTx('${t.id}')">삭제</button></td>
   </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:#9ca3af;padding:24px">거래 내역이 없습니다</td></tr>';
-  txNote.textContent = `${S.curYear}년 ${curMonth}월 · ${txs.length}건 표시 · 노란 배경 = 웹에서 추가/수정된 항목, 점선 테두리 칸(카드값출금) = 카드 사용액 기준 자동계산 (직접 입력하면 수동 금액으로 고정, 비우면 자동계산으로 복귀)`;
+  txBody.innerHTML += qkRowHTML();
+  document.getElementById('qkDate').value = qkState.date || qkDefaultDate();
+  qkRenderRow();
+  txNote.textContent = `${S.curYear}년 ${curMonth}월 · ${txs.length}건 표시 · 노란 배경 = 웹에서 추가/수정된 항목, 점선 테두리 칸(카드값출금) = 카드 사용액 기준 자동계산 (직접 입력하면 수동 금액으로 고정, 비우면 자동계산으로 복귀) · 맨 아래 입력행에서 엑셀처럼 바로 추가할 수 있습니다 (Enter로 빠른 등록)`;
 }
+
+// ---------- tx quick add (엑셀 형식 인라인 추가행) ----------
+let qkState = {type:'지출', category:'', method:'', account:'', date:''};
+function qkDefaultDate(){
+  const today = new Date();
+  if(today.getFullYear()===S.curYear && today.getMonth()+1===curMonth) return `${S.curYear}-${String(curMonth).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  return `${S.curYear}-${String(curMonth).padStart(2,'0')}-01`;
+}
+function qkRowHTML(){
+  const ekd='if(event.key===\'Enter\'){event.preventDefault();qkAdd();}';
+  return `<tr class="addrow" id="txAddRow">
+    <td><input type="date" id="qkDate" onkeydown="${ekd}"></td>
+    <td><select id="qkType" onchange="qkTypeChange()"><option>지출</option><option>수입</option><option>계좌이동</option></select></td>
+    <td><select id="qkCat" onchange="qkState.category=this.value"></select></td>
+    <td class="num"><input type="text" inputmode="numeric" class="amt-input" id="qkAmount" placeholder="금액" style="text-align:right" onkeydown="${ekd}"></td>
+    <td><input type="text" id="qkDetail" placeholder="상세 내역" onkeydown="${ekd}"></td>
+    <td><select id="qkMethod" onchange="qkMethodChange()"></select></td>
+    <td><select id="qkAccount" onchange="qkState.account=this.value"></select></td>
+    <td><input type="text" id="qkMemo" placeholder="비고" onkeydown="${ekd}"></td>
+    <td><button type="button" class="btn sm primary" onclick="qkAdd()">＋ 추가</button></td>
+  </tr>`;
+}
+function qkOptsCat(){ return qkState.type==='수입' ? S.incomeCats.map(c=>c.name) : qkState.type==='지출' ? S.expenseCats.map(c=>c.name) : []; }
+function qkOptsMethod(){
+  const acctNames = S.accounts.map(a=>a.name);
+  return qkState.type==='지출' ? ['현금','체크카드','신용카드','타인 계좌이체'] : qkState.type==='수입' ? ['계좌입금','현금'] : acctNames;
+}
+function qkOptsAccount(){
+  const allAccts = S.accounts.map(a=>a.name);
+  if(qkState.type==='계좌이동') return allAccts;
+  if(qkState.type==='지출' && qkState.method==='신용카드') return S.cards.map(c=>c.name);
+  if(qkState.type==='지출' && qkState.method==='체크카드'){ let o=S.accounts.filter(a=>a.hasCheckCard).map(a=>a.name); return o.length?o:allAccts; }
+  if(qkState.type==='지출' && qkState.method==='현금') return ['내 지갑'];
+  return allAccts;
+}
+function qkRenderRow(){
+  const qkType=document.getElementById('qkType'), qkCat=document.getElementById('qkCat'),
+        qkMethod=document.getElementById('qkMethod'), qkAccount=document.getElementById('qkAccount');
+  if(!qkType) return;
+  qkType.value = qkState.type;
+  if(qkState.type==='계좌이동'){ qkCat.innerHTML='<option value="">-</option>'; qkCat.disabled=true; }
+  else { qkCat.disabled=false; qkCat.innerHTML = qkOptsCat().map(o=>`<option${o===qkState.category?' selected':''}>${esc(o)}</option>`).join(''); if(!qkState.category) qkState.category=qkCat.value; }
+  qkMethod.innerHTML = qkOptsMethod().map(m=>`<option${m===qkState.method?' selected':''}>${esc(m)}</option>`).join('');
+  if(!qkState.method) qkState.method = qkMethod.value;
+  qkAccount.innerHTML = '<option value=""></option>'+qkOptsAccount().map(a=>`<option${a===qkState.account?' selected':''}>${esc(a)}</option>`).join('');
+}
+window.qkTypeChange = ()=>{ qkState.type=document.getElementById('qkType').value; qkState.category=''; qkState.method=''; qkState.account=''; qkRenderRow(); };
+window.qkMethodChange = ()=>{ qkState.method=document.getElementById('qkMethod').value; qkState.account=''; qkRenderRow(); };
+window.qkAdd = ()=>{
+  const dEl=document.getElementById('qkDate');
+  if(!dEl.value){ alert('날짜를 입력해주세요.'); dEl.focus(); return; }
+  const amtEl=document.getElementById('qkAmount');
+  const amt = numVal(amtEl);
+  if(!amt){ alert('금액을 입력해주세요.'); amtEl.focus(); return; }
+  const d = new Date(dEl.value);
+  const type = document.getElementById('qkType').value;
+  const rec = {
+    year: d.getFullYear(), month: d.getMonth()+1, day: d.getDate(), weekday: WD[d.getDay()],
+    type, category: type==='계좌이동' ? null : (document.getElementById('qkCat').value||null),
+    amount: amt,
+    detail: document.getElementById('qkDetail').value||null,
+    method: document.getElementById('qkMethod').value||null,
+    account: document.getElementById('qkAccount').value||null,
+    memo: document.getElementById('qkMemo').value||null,
+    id: 'u'+Date.now()+Math.floor(Math.random()*1000)
+  };
+  S.added.push(rec);
+  qkState.type=type; qkState.category=rec.category||''; qkState.method=rec.method||''; qkState.account=rec.account||''; qkState.date=dEl.value;
+  save(); renderAll();
+  setTimeout(()=>{ const a=document.getElementById('qkAmount'); if(a) a.focus(); },0);
+};
 
 // ---------- tx add / edit ----------
 const dlg = document.getElementById('dlg');
@@ -1475,7 +1588,7 @@ function renderCats(){
       <button class="btn danger sm" onclick="delCat('inc',${i})">삭제</button></td></tr>`;
   });
   document.getElementById('tblIncCat').innerHTML=h+'</tbody>';
-  h='<thead><tr><th></th><th>지출구분</th><th>대분류</th><th>카테고리명</th><th></th></tr></thead><tbody>';
+  h='<thead><tr><th></th><th>지출구분</th><th>분류</th><th>카테고리명</th><th></th></tr></thead><tbody>';
   const tierTag = t=>`<span class="tag" style="background:${t==='필수'?'#e0e7ff':t==='선택'?'#dcfce7':'#fee2e2'};color:${t==='필수'?'#4338ca':t==='선택'?'#15803d':'#b91c1c'}">${esc(t)}</span>`;
   S.expenseCats.forEach((c,i)=>{
     h+=`<tr draggable="true" data-i="${i}"><td class="grip" title="끌어서 순서 변경">⠿</td><td>${tierTag(c.tier||'선택')}</td><td class="acct-kind">${esc(c.major)}</td><td>${esc(c.name)}</td>
