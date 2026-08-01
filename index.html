@@ -399,7 +399,10 @@ document.addEventListener('input', e=>{
 
 function realTx(){
   const del = new Set(S.deleted);
-  const base = SEED.transactions.filter(t=>!del.has(t.id)).map(t=> S.edited[t.id] ? {...t, ...S.edited[t.id], _edited:true} : t);
+  const base = SEED.transactions
+    .filter(t=>!del.has(t.id))
+    .filter(t=>['수입','지출','계좌이동'].includes(t.type)) // 원본 엑셀의 빈 행(구분 값 없는 행) 제외 — 총 거래 건수와 수입/지출/이동 합계가 어긋나는 원인
+    .map(t=> S.edited[t.id] ? {...t, ...S.edited[t.id], _edited:true} : t);
   return base.concat(S.added.map(t=>({...t, _edited:true})));
 }
 
