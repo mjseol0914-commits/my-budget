@@ -1,0 +1,1568 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>만년 가계부</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--ink:#1f2328;--sub:#6b7280;--line:#e5e7eb;--blue:#3b82f6;--red:#ef4444;--green:#10b981;--violet:#8b5cf6;--amber:#f59e0b}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+header{background:#fff;border-bottom:1px solid var(--line);padding:12px 24px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:20;flex-wrap:wrap}
+header h1{font-size:18px}
+header .sub{color:var(--sub);font-size:12px;display:flex;align-items:center;gap:6px}
+header select.year{font-weight:700;font-size:15px;border:1px solid var(--line);border-radius:8px;padding:5px 8px;background:#fff}
+header input.base{border:1px solid var(--line);border-radius:6px;padding:3px 6px;font-size:12px;color:var(--sub)}
+nav{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+nav button{border:none;background:none;padding:8px 14px;border-radius:8px;font-size:14px;cursor:pointer;color:var(--sub)}
+nav button.on{background:#eef2ff;color:#4338ca;font-weight:600}
+main{max-width:1200px;margin:0 auto;padding:20px 24px 60px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card .t{color:var(--sub);font-size:12px;margin-bottom:6px}
+.card .v{font-size:20px;font-weight:700}
+.card .d{font-size:12px;color:var(--sub);margin-top:4px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:800px){.grid2{grid-template-columns:1fr}}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media(max-width:1000px){.grid3{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
+.panel h3{font-size:14px;margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.chartbox{position:relative;height:280px}
+select,input[type=text],input[type=number],input[type=date]{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;background:#fff}
+button.btn{border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;background:#eef2ff;color:#4338ca;font-weight:600}
+button.btn.primary{background:#4338ca;color:#fff}
+button.btn.danger{background:#fee2e2;color:#b91c1c}
+button.btn.sm{padding:3px 8px;font-size:12px}
+button.btn:disabled{opacity:.35;cursor:default}
+#tblIncCat tbody tr[draggable], #tblExpCat tbody tr[draggable]{cursor:grab}
+#tblIncCat tbody tr.dragging, #tblExpCat tbody tr.dragging{opacity:.35;background:#eef2ff}
+#tblIncCat tbody tr.drop-before td, #tblExpCat tbody tr.drop-before td{box-shadow:inset 0 2px 0 0 var(--blue)}
+#tblIncCat tbody tr.drop-after td, #tblExpCat tbody tr.drop-after td{box-shadow:inset 0 -2px 0 0 var(--blue)}
+td.grip{cursor:grab;color:#c3c7cf;user-select:none;text-align:center;width:26px;font-size:15px}
+td.grip:active{cursor:grabbing}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--sub);font-weight:600;padding:8px;border-bottom:2px solid var(--line);white-space:nowrap}
+td{padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td.num,th.num{text-align:right}
+.tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.tag.수입{background:#dcfce7;color:#15803d}.tag.지출{background:#fee2e2;color:#b91c1c}.tag.계좌이동{background:#e0e7ff;color:#4338ca}
+.tag.완료{background:#e0e7ff;color:#4338ca}.tag.예정{background:#fef3c7;color:#92400e}
+tr.cardrow{background:#fbfbff}
+.cardov{width:104px;text-align:right;border:1px dashed #a5b4fc!important;border-radius:6px;background:#fff}
+.cardov::placeholder{color:#b6bdf2}
+.pos{color:var(--green)}.neg{color:var(--red)}
+.mtabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px}
+.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.calgrid .cal-dow{text-align:center;font-size:11px;color:var(--sub);font-weight:600;padding:4px 0}
+.calgrid .cal-day{min-height:64px;border:1px solid var(--line);border-radius:8px;padding:4px 5px;font-size:11px;cursor:pointer;background:#fff}
+.calgrid .cal-day.empty{border:none;background:none;cursor:default}
+.calgrid .cal-day.today{border-color:#4338ca;border-width:2px}
+.calgrid .cal-day.on{background:#eef2ff}
+.calgrid .cal-day .dnum{font-size:12px;font-weight:600;color:var(--ink)}
+.calgrid .cal-day .di{color:var(--green)}
+.calgrid .cal-day .de{color:var(--red)}
+.mtabs button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px}
+.mtabs button.on{background:#4338ca;color:#fff;border-color:#4338ca;font-weight:600}
+dialog{border:none;border-radius:14px;padding:22px;width:420px;max-width:92vw;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+dialog::backdrop{background:rgba(0,0,0,.35)}
+.frm{display:grid;gap:10px}
+.frm label{font-size:12px;color:var(--sub);display:block;margin-bottom:3px}
+.frm .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.frm select,.frm input{width:100%}
+.acct-kind{font-size:11px;color:var(--sub)}
+.note{font-size:12px;color:var(--sub);margin-top:8px}
+.edited{background:#fffbeb}
+.msel{position:relative;display:inline-block}
+.msel .mbtn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;color:var(--ink);font-weight:500}
+.msel .mbtn .cnt{color:var(--sub);font-weight:400;margin:0 3px}
+.msel .pop{position:absolute;top:calc(100% + 4px);right:0;z-index:30;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.16);padding:8px;min-width:210px;max-height:320px;overflow:auto;display:none}
+.msel.open .pop{display:block}
+.msel .pop .tools{display:flex;gap:6px;padding-bottom:6px;margin-bottom:4px;border-bottom:1px solid var(--line)}
+.msel .pop .tools button{flex:1;border:1px solid var(--line);background:#fff;border-radius:6px;padding:5px;font-size:12px;cursor:pointer;color:var(--sub)}
+.msel .pop .tools button:hover{background:#f4f5f7}
+.msel .pop .grp{font-size:11px;color:var(--sub);font-weight:700;margin:8px 4px 3px}
+.msel .pop label{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;font-size:13px;cursor:pointer;white-space:nowrap}
+.msel .pop label:hover{background:#f4f5f7}
+.msel .pop label input{margin:0;width:auto}
+</style>
+</head>
+<body>
+<header>
+  <h1>📒 만년 가계부</h1>
+  <select class="year" id="yearSel"></select>
+  <span class="sub">기준일 <input type="date" class="base" id="baseDate" title="자산 스냅샷 기준일 — 직접 수정 가능"></span>
+  <nav>
+    <button data-tab="dash" class="on">대시보드</button>
+    <button data-tab="tx">거래내역</button>
+    <button data-tab="asset">계좌·자산</button>
+    <button data-tab="cat">카테고리 설정</button>
+  </nav>
+</header>
+<main>
+
+<section id="tab-dash">
+  <div class="cards">
+    <div class="card"><div class="t" id="tIncome">연간 수입</div><div class="v pos" id="kIncome"></div><div class="d" id="kIncomeD"></div></div>
+    <div class="card"><div class="t" id="tExpense">연간 지출</div><div class="v neg" id="kExpense"></div><div class="d" id="kExpenseD"></div></div>
+    <div class="card"><div class="t">수입 − 지출</div><div class="v" id="kNet"></div><div class="d">기록된 거래 기준</div></div>
+    <div class="card"><div class="t">총 거래 건수</div><div class="v" id="kCount"></div><div class="d" id="kCountD"></div></div>
+  </div>
+  <div class="panel"><h3>월별 수입 / 지출
+    <span class="sub" id="monFilterNote" style="font-weight:400"></span>
+    <span style="margin-left:auto;display:inline-flex;gap:6px;flex-wrap:wrap">
+      <span class="msel" id="mfInc"></span>
+      <span class="msel" id="mfTier"></span>
+      <span class="msel" id="mfMajor"></span>
+      <span class="msel" id="mfExp"></span>
+    </span>
+  </h3><div class="chartbox"><canvas id="chMonthly"></canvas></div></div>
+  <div class="grid3">
+    <div class="panel"><h3>지출 대분류별 비중 <select id="dashMonthMajor"></select></h3><div class="chartbox"><canvas id="chCatMajor"></canvas></div></div>
+    <div class="panel"><h3>지출 계정별 비중 <select id="dashMonth"></select></h3><div class="chartbox"><canvas id="chCat"></canvas></div></div>
+    <div class="panel"><h3>지출 수단별 <span class="sub" id="methodScope"></span></h3><div class="chartbox"><canvas id="chMethod"></canvas></div></div>
+  </div>
+  <div class="panel"><h3>계정별 지출 상세 (연간)</h3><div style="overflow-x:auto"><table id="tblCat"></table></div></div>
+</section>
+
+<section id="tab-tx" style="display:none">
+  <div class="mtabs" id="monthTabs"></div>
+  <div class="cards">
+    <div class="card"><div class="t" id="tMIncome">월 수입</div><div class="v pos" id="mIncome"></div></div>
+    <div class="card"><div class="t" id="tMExpense">월 지출</div><div class="v neg" id="mExpense"></div></div>
+    <div class="card"><div class="t" id="tMNet">월 수입-지출</div><div class="v" id="mNet"></div></div>
+  </div>
+  <div class="grid2">
+    <div class="panel">
+      <h3>달력 <span class="sub" id="calMonthLabel" style="font-weight:400"></span></h3>
+      <div id="calGrid" class="calgrid"></div>
+    </div>
+    <div class="panel">
+      <h3>전월 대비 당월 지출 추이</h3>
+      <div class="chartbox"><canvas id="chMoM"></canvas></div>
+    </div>
+  </div>
+  <div class="toolbar">
+    <select id="fDay"><option value="">전체 날짜</option></select>
+    <select id="fType"><option value="">전체 구분</option><option>수입</option><option>지출</option><option>계좌이동</option></select>
+    <select id="fCat"><option value="">전체 계정</option></select>
+    <select id="fMethod"><option value="">전체 수단</option></select>
+    <select id="fAcct"><option value="">전체 계좌</option></select>
+    <input type="text" id="fSearch" placeholder="상세내역·비고 검색…" style="flex:1;min-width:140px">
+    <button class="btn primary" id="btnAdd">＋ 거래 추가</button>
+    <button class="btn" id="btnImport">가져오기(엑셀·CSV)</button>
+    <input type="file" id="fileImport" accept=".xlsx,.xls,.csv,.txt" style="display:none">
+    <button class="btn" id="btnCsv">CSV 내보내기</button>
+    <button class="btn" id="btnBackup">백업(JSON)</button>
+    <button class="btn" id="btnRestore">복원</button>
+    <input type="file" id="fileRestore" accept=".json" style="display:none">
+    <button class="btn" id="btnDrive">Google Drive 연결</button>
+    <button class="btn" id="btnDriveSync" style="display:none">↻ 동기화</button>
+    <span id="driveStatus" class="sub" style="align-self:center;white-space:nowrap"></span>
+    <button class="btn danger" id="btnReset">초기화</button>
+  </div>
+  <div class="panel" style="overflow-x:auto">
+    <table>
+      <thead><tr><th>날짜</th><th>구분</th><th>계정</th><th class="num">금액</th><th>상세 내역</th><th>수단</th><th>계좌</th><th>비고</th><th></th></tr></thead>
+      <tbody id="txBody"></tbody>
+    </table>
+    <div class="note" id="txNote"></div>
+  </div>
+</section>
+
+<section id="tab-asset" style="display:none">
+  <div class="cards">
+    <div class="card"><div class="t">총 자산</div><div class="v" id="aTotal"></div><div class="d" id="aDate"></div></div>
+    <div class="card"><div class="t">예적금</div><div class="v" id="aSaving"></div></div>
+    <div class="card"><div class="t">투자</div><div class="v" id="aInvest"></div></div>
+    <div class="card"><div class="t">현금성</div><div class="v" id="aCash"></div></div>
+  </div>
+  <div class="grid2">
+    <div class="panel"><h3>자산 구성</h3><div class="chartbox"><canvas id="chAsset"></canvas></div></div>
+    <div class="panel">
+      <h3>계좌 목록 <button class="btn sm primary" id="btnAcctAdd" style="margin-left:auto">＋ 계좌 추가</button></h3>
+      <div style="overflow-x:auto;max-height:340px;overflow-y:auto"><table id="tblAcct"></table></div>
+      <div class="note">계좌를 수정할 때 입력하는 「현재잔액」은 <b>기준일 시점</b>의 잔액입니다 (표에서는 "기준일(날짜) 잔액" 칸에 그대로 표시됩니다, 변동 없음). 표의 맨 오른쪽 "오늘 기준 잔액"은 그 값에서 기준일 이후 실제로 발생한(체크카드·현금 지출/수입/계좌이동) 거래와, 결제일이 지난(완료) 카드값 출금을 자동으로 더하고 뺀 <b>오늘 시점 예상값</b>입니다 — 그래서 기준일이 지난 카드 결제일보다 앞선 날짜여도, "오늘 기준 잔액"은 이미 그 결제가 반영된 값으로 보이는 게 정상입니다. 실제 은행 잔액을 확인해 값을 다시 맞추셨다면, 기준일도 그 날짜로 함께 갱신해주세요 (중복 차감 방지).</div>
+    </div>
+  </div>
+  <div class="panel">
+    <h3>신용카드 <button class="btn sm primary" id="btnCardAdd" style="margin-left:auto">＋ 카드 추가</button></h3>
+    <table id="tblCard"></table>
+    <div class="note">카드명·카드사·출금 계좌·출금일을 직접 관리할 수 있습니다. 카드명을 바꾸면 기존 거래 기록과 연결이 끊길 수 있으니, 이미 사용 중인 카드는 이름 변경에 주의하세요.</div>
+  </div>
+  <div class="panel">
+    <h3>계좌별 거래내역 <select id="acctLedgerSel" style="margin-left:8px"></select></h3>
+    <div style="overflow-x:auto;max-height:420px;overflow-y:auto"><table id="tblAcctLedger"></table></div>
+    <div class="note" id="acctLedgerNote"></div>
+  </div>
+</section>
+
+<section id="tab-cat" style="display:none">
+  <div class="grid2">
+    <div class="panel">
+      <h3>수입 카테고리 <button class="btn sm primary" id="btnIncCatAdd" style="margin-left:auto">＋ 추가</button></h3>
+      <table id="tblIncCat"></table>
+      <div class="note">구분이 「소득 외」인 카테고리(더치페이·잔액조정 등)는 수입 합계에서 제외됩니다.</div>
+    </div>
+    <div class="panel">
+      <h3>지출 카테고리 <button class="btn sm primary" id="btnExpCatAdd" style="margin-left:auto">＋ 추가</button></h3>
+      <div style="max-height:420px;overflow-y:auto"><table id="tblExpCat"></table></div>
+    </div>
+  </div>
+  <div class="panel note">카테고리를 삭제해도 기존 거래 기록은 그대로 유지됩니다. 삭제된 카테고리는 새 거래 입력 시 선택 목록에만 나타나지 않습니다.</div>
+</section>
+</main>
+
+<dialog id="dlg">
+  <h3 style="margin-bottom:14px" id="dlgTitle">거래 추가</h3>
+  <form class="frm" method="dialog" id="txForm">
+    <div class="row">
+      <div><label>날짜</label><input type="date" id="inDate" required></div>
+      <div><label>구분</label><select id="inType"><option>지출</option><option>수입</option><option>계좌이동</option></select></div>
+    </div>
+    <div class="row">
+      <div><label>계정</label><select id="inCat"></select></div>
+      <div><label>금액</label><input type="text" inputmode="numeric" class="amt-input" id="inAmount" placeholder="0" required></div>
+    </div>
+    <div><label>상세 내역</label><input type="text" id="inDetail"></div>
+    <div class="row">
+      <div><label id="lblMethod">수단 / 출금처</label><select id="inMethod"></select></div>
+      <div><label id="lblAccount">계좌 / 입금처</label><select id="inAccount"></select></div>
+    </div>
+    <div><label>비고</label><input type="text" id="inMemo"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
+      <button class="btn" type="button" onclick="dlg.close()">취소</button>
+      <button class="btn primary" value="ok">저장</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="acctDlg">
+  <h3 style="margin-bottom:14px" id="acctDlgTitle">계좌 추가</h3>
+  <form class="frm" method="dialog" id="acctForm">
+    <div class="row">
+      <div><label>계좌명</label><input type="text" id="acName" required></div>
+      <div><label>구분</label><select id="acKind"><option>현 금</option><option>예적금</option><option>투 자</option></select></div>
+    </div>
+    <div><label>은행 / 기관</label><input type="text" id="acBank"></div>
+    <div class="row">
+      <div><label>초기금액</label><input type="text" inputmode="numeric" class="amt-input" id="acInit" placeholder="0"></div>
+      <div><label>현재잔액 (비우면 초기금액 사용)</label><input type="text" inputmode="numeric" class="amt-input" id="acBal" placeholder=""></div>
+    </div>
+    <div><label style="display:flex;align-items:center;gap:6px;margin-top:2px"><input type="checkbox" id="acCheckCard" style="width:auto"> 체크카드 연동 계좌 (거래 추가 시 「체크카드」 수단 선택 목록에 표시)</label></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
+      <button class="btn" type="button" onclick="acctDlg.close()">취소</button>
+      <button class="btn primary" value="ok">저장</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="cardItemDlg">
+  <h3 style="margin-bottom:14px" id="cardItemDlgTitle">카드 추가</h3>
+  <form class="frm" method="dialog" id="cardItemForm">
+    <div class="row">
+      <div><label>카드명 (거래 입력 시 표시될 이름)</label><input type="text" id="ciName" required></div>
+      <div><label>카드사</label><input type="text" id="ciCompany"></div>
+    </div>
+    <div class="row">
+      <div><label>출금 계좌</label><select id="ciAccount"></select></div>
+      <div><label>출금일 (매월)</label><input type="number" id="ciPayday" min="1" max="31" value="1" required></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
+      <button class="btn" type="button" onclick="cardItemDlg.close()">취소</button>
+      <button class="btn primary" value="ok">저장</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="catDlg">
+  <h3 style="margin-bottom:14px" id="catDlgTitle">카테고리 추가</h3>
+  <form class="frm" method="dialog" id="catForm">
+    <div class="row">
+      <div id="ctGroupWrap"><label>수입구분</label><input type="text" id="ctGroup" list="groupList" required><datalist id="groupList"></datalist></div>
+      <div id="ctMajorWrap"><label>대분류</label><input type="text" id="ctMajor" list="majorList"><datalist id="majorList"></datalist></div>
+    </div>
+    <div><label>카테고리명 (상세)</label><input type="text" id="ctName" required></div>
+    <div id="ctTierWrap"><label>지출 구분 <span class="note" style="display:inline">(월별 수입/지출 그래프에서 지출을 나눠 볼 때 사용)</span></label>
+      <select id="ctTier"><option value="필수">필수</option><option value="선택">선택</option><option value="비정기">비정기</option></select>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
+      <button class="btn" type="button" onclick="catDlg.close()">취소</button>
+      <button class="btn primary" value="ok">저장</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="importDlg" style="width:760px">
+  <h3 style="margin-bottom:6px">거래내역 가져오기 — 미리보기</h3>
+  <p class="note" id="importSummary" style="margin-bottom:10px"></p>
+  <div style="max-height:360px;overflow:auto;border:1px solid var(--line);border-radius:8px">
+    <table id="importPreviewTbl"></table>
+  </div>
+  <div class="note" id="importErrors" style="color:var(--red);margin-top:8px;max-height:120px;overflow:auto"></div>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+    <button class="btn" type="button" onclick="importDlg.close()">취소</button>
+    <button class="btn primary" type="button" id="btnImportConfirm">가져오기 확정</button>
+  </div>
+</dialog>
+
+<script id="seed" type="application/json">{"year": 2026, "lastRecord": "2026-07-01", "transactions": [{"month": 1, "day": 1, "weekday": "목", "type": "수입", "category": "이자수익", "amount": 8, "detail": null, "method": "계좌입금", "account": "토스", "cardAccount": null, "memo": null}, {"month": 1, "day": 2, "weekday": "금", "type": "수입", "category": "이자수익", "amount": 3, "detail": "KB증권", "method": "계좌입금", "account": "주식", "cardAccount": null, "memo": null}, {"month": 1, "day": 2, "weekday": "금", "type": "계좌이동", "category": null, "amount": 5000000, "detail": null, "method": "비상금", "account": "예적금", "cardAccount": null, "memo": null}, {"month": 1, "day": 2, "weekday": "금", "type": "지출", "category": "식비", "amount": 42000, "detail": null, "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 2, "weekday": "금", "type": "수입", "category": "배당금", "amount": 2937, "detail": "삼성증권 해외주식", "method": "계좌입금", "account": "주식", "cardAccount": null, "memo": null}, {"month": 1, "day": 2, "weekday": "금", "type": "지출", "category": "간식", "amount": 7300, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 1, "day": 3, "weekday": "토", "type": "지출", "category": "생필품", "amount": 13000, "detail": "다이소", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 3, "weekday": "토", "type": "지출", "category": "커피", "amount": 1600, "detail": "메가", "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 1, "day": 4, "weekday": "일", "type": "계좌이동", "category": null, "amount": 50000, "detail": "문상구매", "method": "토스", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 1, "day": 4, "weekday": "일", "type": "지출", "category": "생필품", "amount": 8010, "detail": "탐폰", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 5, "weekday": "월", "type": "수입", "category": "이자수익", "amount": 18242, "detail": null, "method": "계좌입금", "account": "비상금", "cardAccount": null, "memo": null}, {"month": 1, "day": 5, "weekday": "월", "type": "수입", "category": "이자수익", "amount": 250031, "detail": "새마을 선납이연", "method": "계좌입금", "account": "예적금", "cardAccount": null, "memo": null}, {"month": 1, "day": 5, "weekday": "월", "type": "계좌이동", "category": null, "amount": 12250031, "detail": null, "method": "예적금", "account": "새마을", "cardAccount": null, "memo": null}, {"month": 1, "day": 5, "weekday": "월", "type": "수입", "category": "급여", "amount": 3593200, "detail": null, "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 1, "day": 6, "weekday": "화", "type": "계좌이동", "category": null, "amount": 700000, "detail": "청도계", "method": "국민", "account": "예적금", "cardAccount": null, "memo": null}, {"month": 1, "day": 6, "weekday": "화", "type": "계좌이동", "category": null, "amount": 300000, "detail": null, "method": "국민", "account": "개인연금", "cardAccount": null, "memo": null}, {"month": 1, "day": 6, "weekday": "화", "type": "지출", "category": "식비", "amount": 27800, "detail": null, "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 6, "weekday": "화", "type": "수입", "category": "이자수익", "amount": 36, "detail": null, "method": "계좌입금", "account": "토스", "cardAccount": null, "memo": null}, {"month": 1, "day": 6, "weekday": "화", "type": "계좌이동", "category": null, "amount": 234047, "detail": null, "method": "토스", "account": "비상금", "cardAccount": null, "memo": null}, {"month": 1, "day": 6, "weekday": "화", "type": "계좌이동", "category": null, "amount": 5000000, "detail": null, "method": "새마을", "account": "비상금", "cardAccount": null, "memo": null}, {"month": 1, "day": 7, "weekday": "수", "type": "지출", "category": "교통비", "amount": 10000, "detail": "티머니", "method": "타인 계좌이체", "account": "국민", "cardAccount": null, "memo": null}, {"month": 1, "day": 7, "weekday": "수", "type": "수입", "category": "포인트", "amount": 88, "detail": null, "method": "계좌입금", "account": "토스", "cardAccount": null, "memo": null}, {"month": 1, "day": 7, "weekday": "수", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 8, "weekday": "목", "type": "지출", "category": "차량유지비", "amount": 300000, "detail": "포르테 보험료", "method": "타인 계좌이체", "account": "국민", "cardAccount": null, "memo": null}, {"month": 1, "day": 9, "weekday": "금", "type": "수입", "category": "이자수익", "amount": 549, "detail": null, "method": "계좌입금", "account": "개인연금", "cardAccount": null, "memo": null}, {"month": 1, "day": 9, "weekday": "금", "type": "수입", "category": "이자수익", "amount": 379, "detail": null, "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 1, "day": 9, "weekday": "금", "type": "지출", "category": "기타", "amount": 0, "detail": "테슬라계약금 (1/6)", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 9, "weekday": "금", "type": "계좌이동", "category": null, "amount": 400000, "detail": null, "method": "새마을", "account": "비상금", "cardAccount": null, "memo": null}, {"month": 1, "day": 10, "weekday": "토", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 1, "day": 10, "weekday": "토", "type": "지출", "category": "경조사", "amount": 200000, "detail": "배소영 축의 현금 인출", "method": "타인 계좌이체", "account": "국민", "cardAccount": null, "memo": null}, {"month": 1, "day": 11, "weekday": "일", "type": "지출", "category": "커피", "amount": 2500, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 1, "day": 12, "weekday": "월", "type": "지출", "category": "통신비", "amount": 3630, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 12, "weekday": "월", "type": "지출", "category": "차량유지비", "amount": 833500, "detail": "테슬라계약금 (1/6)", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 13, "weekday": "화", "type": "수입", "category": "기타", "amount": 1, "detail": null, "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 1, "day": 13, "weekday": "화", "type": "지출", "category": "주유", "amount": 68000, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 15, "weekday": "목", "type": "지출", "category": "휴식", "amount": 5000, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 1, "day": 15, "weekday": "목", "type": "지출", "category": "간식", "amount": 2300, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 1, "day": 14, "weekday": "수", "type": "계좌이동", "category": null, "amount": 500000, "detail": null, "method": "국민", "account": "주식", "cardAccount": null, "memo": null}, {"month": 1, "day": 14, "weekday": "수", "type": "계좌이동", "category": null, "amount": 6800000, "detail": null, "method": "새마을", "account": "CMA", "cardAccount": null, "memo": null}, {"month": 1, "day": 16, "weekday": "금", "type": "계좌이동", "category": null, "amount": 893966, "detail": null, "method": "카카오", "account": "주식", "cardAccount": null, "memo": null}, {"month": 1, "day": 15, "weekday": "목", "type": "지출", "category": "식비", "amount": 5500, "detail": "저녁 식대 25,500 원 - 개인경비 청구", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 16, "weekday": "금", "type": "지출", "category": "생필품", "amount": 12240, "detail": "쿠팡", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 17, "weekday": "토", "type": "수입", "category": "이자수익", "amount": 4036, "detail": null, "method": "계좌입금", "account": "우리", "cardAccount": null, "memo": null}, {"month": 1, "day": 17, "weekday": "토", "type": "지출", "category": "간식", "amount": 4000, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 1, "day": 18, "weekday": "일", "type": "지출", "category": "베프", "amount": 10200, "detail": "커피", "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 1, "day": 18, "weekday": "일", "type": "지출", "category": "베프", "amount": 2500, "detail": "커피", "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 1, "day": 18, "weekday": "일", "type": "지출", "category": "베프", "amount": 79000, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 1, "day": 18, "weekday": "일", "type": "지출", "category": "생필품", "amount": 7250, "detail": "알리거치대, c 타입케이블 (네이버페이)", "method": "내지갑", "account": "현금", "cardAccount": null, "memo": null}, {"month": 1, "day": 18, "weekday": "일", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 1, "day": 19, "weekday": "월", "type": "지출", "category": "간식", "amount": 2800, "detail": null, "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 19, "weekday": "월", "type": "지출", "category": "운동", "amount": 6990, "detail": "쿠팡", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 20, "weekday": "화", "type": "지출", "category": "보험", "amount": 44200, "detail": null, "method": "타인 계좌이체", "account": "새마을", "cardAccount": null, "memo": null}, {"month": 1, "day": 20, "weekday": "화", "type": "지출", "category": "교통비", "amount": 0, "detail": null, "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 21, "weekday": "수", "type": "지출", "category": "교통비", "amount": 10000, "detail": "티머니 충전", "method": "타인 계좌이체", "account": "국민", "cardAccount": null, "memo": null}, {"month": 1, "day": 22, "weekday": "목", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 22, "weekday": "목", "type": "지출", "category": "운동", "amount": 86130, "detail": "수영등록", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 23, "weekday": "금", "type": "지출", "category": "휴식", "amount": 5000, "detail": null, "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 23, "weekday": "금", "type": "수입", "category": "더치페이", "amount": 9000, "detail": "윤선은 넷플", "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 1, "day": 23, "weekday": "금", "type": "지출", "category": "식비", "amount": 39000, "detail": "마라탕", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 25, "weekday": "일", "type": "지출", "category": "베프", "amount": 9300, "detail": "커피", "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 1, "day": 25, "weekday": "일", "type": "지출", "category": "베프", "amount": 2500, "detail": "커피", "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 1, "day": 25, "weekday": "일", "type": "지출", "category": "베프", "amount": 43000, "detail": "양꼬치", "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 1, "day": 26, "weekday": "월", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 26, "weekday": "월", "type": "지출", "category": "기타", "amount": 26200, "detail": "노트북거치대 (네이버페이)", "method": "내 지갑", "account": "현금", "cardAccount": null, "memo": null}, {"month": 1, "day": 26, "weekday": "월", "type": "계좌이동", "category": null, "amount": 400000, "detail": null, "method": "주식", "account": "국민", "cardAccount": null, "memo": null}, {"month": 1, "day": 26, "weekday": "월", "type": "지출", "category": "보험", "amount": 200481, "detail": null, "method": "타인 계좌이체", "account": "국민", "cardAccount": null, "memo": null}, {"month": 1, "day": 26, "weekday": "월", "type": "지출", "category": "생활비", "amount": 200000, "detail": null, "method": "타인 계좌이체", "account": "국민", "cardAccount": null, "memo": null}, {"month": 1, "day": 26, "weekday": "월", "type": "수입", "category": "기타", "amount": 1, "detail": null, "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 1, "day": 27, "weekday": "화", "type": "지출", "category": "구독료", "amount": 9000, "detail": "넷플릭스", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 27, "weekday": "화", "type": "수입", "category": "기타", "amount": 1, "detail": null, "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 1, "day": 27, "weekday": "화", "type": "지출", "category": "생필품", "amount": 3000, "detail": "다이소", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 29, "weekday": "목", "type": "지출", "category": "교통비", "amount": 0, "detail": null, "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 29, "weekday": "목", "type": "지출", "category": "기타", "amount": 9000, "detail": "레몬비?", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 29, "weekday": "목", "type": "계좌이동", "category": null, "amount": 300000, "detail": null, "method": "카카오페이", "account": "국민", "cardAccount": null, "memo": null}, {"month": 1, "day": 29, "weekday": "목", "type": "계좌이동", "category": null, "amount": 100000, "detail": null, "method": "국민", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 1, "day": 29, "weekday": "목", "type": "계좌이동", "category": null, "amount": 110000, "detail": null, "method": "국민", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 1, "day": 30, "weekday": "금", "type": "수입", "category": "잔액조정", "amount": 70000, "detail": "개인경비", "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 1, "day": 30, "weekday": "금", "type": "수입", "category": "기타", "amount": 1, "detail": null, "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 1, "day": 30, "weekday": "금", "type": "계좌이동", "category": null, "amount": 185810, "detail": null, "method": "국민", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 1, "day": 30, "weekday": "금", "type": "계좌이동", "category": null, "amount": 100000, "detail": null, "method": "주식", "account": "국민", "cardAccount": null, "memo": null}, {"month": 1, "day": 31, "weekday": "토", "type": "지출", "category": "간식", "amount": 48030, "detail": "마음샌드", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 31, "weekday": "토", "type": "수입", "category": "기타", "amount": 1, "detail": null, "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 1, "day": 31, "weekday": "토", "type": "수입", "category": "더치페이", "amount": 16000, "detail": "고부 마음샌드", "method": "계좌입금", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 1, "day": 31, "weekday": "토", "type": "수입", "category": "더치페이", "amount": 134000, "detail": "보경 귤, 마음샌드", "method": "계좌입금", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 1, "day": 31, "weekday": "토", "type": "지출", "category": "휴식", "amount": 38000, "detail": null, "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 31, "weekday": "토", "type": "지출", "category": "간식", "amount": 32400, "detail": "마음샌드", "method": "타인 계좌이체", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 1, "day": 31, "weekday": "토", "type": "지출", "category": "교통비", "amount": 1200, "detail": "공항버스 취소수수료 (손실비용)", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 31, "weekday": "토", "type": "계좌이동", "category": null, "amount": 100001, "detail": null, "method": "국민", "account": "토스", "cardAccount": null, "memo": null}, {"month": 1, "day": 31, "weekday": "토", "type": "계좌이동", "category": null, "amount": 5832, "detail": null, "method": "새마을", "account": "토스", "cardAccount": null, "memo": null}, {"month": 1, "day": 31, "weekday": "토", "type": "계좌이동", "category": null, "amount": 4036, "detail": null, "method": "우리", "account": "토스", "cardAccount": null, "memo": null}, {"month": 1, "day": 31, "weekday": "토", "type": "계좌이동", "category": null, "amount": 10000, "detail": null, "method": "카카오페이", "account": "카카오", "cardAccount": null, "memo": null}, {"month": 1, "day": 31, "weekday": "토", "type": "수입", "category": "기타", "amount": 2, "detail": null, "method": "계좌입금", "account": "토스", "cardAccount": null, "memo": null}, {"month": 1, "day": 31, "weekday": "토", "type": "지출", "category": "계", "amount": 10000, "detail": "FL", "method": "타인 계좌이체", "account": "카카오", "cardAccount": null, "memo": null}, {"month": 1, "day": 31, "weekday": "토", "type": "계좌이동", "category": null, "amount": 170000, "detail": null, "method": "카카오페이", "account": "토스", "cardAccount": null, "memo": null}, {"month": 1, "day": 15, "weekday": "목", "type": "수입", "category": "포인트", "amount": 9060, "detail": "환차익", "method": "계좌입금", "account": "카카오", "cardAccount": null, "memo": null}, {"month": 1, "day": 24, "weekday": "토", "type": "수입", "category": "이자수익", "amount": 2, "detail": null, "method": "계좌입금", "account": "카카오", "cardAccount": null, "memo": null}, {"month": 1, "day": 29, "weekday": "목", "type": "지출", "category": "경조사", "amount": 99000, "detail": "귤 3박스", "method": "현금", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 1, "day": 29, "weekday": "목", "type": "수입", "category": "포인트", "amount": 9899, "detail": "귤 3박스", "method": "현금", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 1, "day": 29, "weekday": "목", "type": "수입", "category": "잔액조정", "amount": -110000, "detail": "보경귤 잔액조정", "method": "계좌입금", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 1, "day": 31, "weekday": "토", "type": "수입", "category": "이자수익", "amount": 1001, "detail": null, "method": "계좌입금", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 1, "day": 4, "weekday": "일", "type": "지출", "category": "베프", "amount": 46000, "detail": "베프", "method": "현금", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 1, "day": 4, "weekday": "일", "type": "수입", "category": "포인트", "amount": 3500, "detail": "문상구매 포인트", "method": "현금", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 1, "day": 31, "weekday": "토", "type": "지출", "category": "교통비", "amount": 63560, "detail": "하이패스", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 31, "weekday": "토", "type": "지출", "category": "생활비", "amount": 41100, "detail": "하이패스", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 1, "day": 2, "weekday": "금", "type": "수입", "category": "배당금", "amount": 9100, "detail": "SOL CD금리&머니마켓액티브", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 1, "day": 5, "weekday": "월", "type": "수입", "category": "배당금", "amount": 9828, "detail": "PLUS 고배당주", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 1, "day": 5, "weekday": "월", "type": "수입", "category": "배당금", "amount": 6000, "detail": "TIGER 미국배당다우존스", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 1, "day": 5, "weekday": "월", "type": "수입", "category": "배당금", "amount": 13200, "detail": "TIGER 미국배당다우존스타겟커버드콜2호", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 1, "day": 5, "weekday": "월", "type": "수입", "category": "배당금", "amount": 13200, "detail": "TIGER 미국테크TOP10 INDXX", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 1, "day": 5, "weekday": "월", "type": "수입", "category": "배당금", "amount": 2400, "detail": "ACE 미국30년국채액티브(H)", "method": "계좌입금", "account": "IRP", "cardAccount": null, "memo": null}, {"month": 1, "day": 5, "weekday": "월", "type": "수입", "category": "배당금", "amount": 4000, "detail": "TIGER 미국배당다우존스", "method": "계좌입금", "account": "IRP", "cardAccount": null, "memo": null}, {"month": 1, "day": 16, "weekday": "금", "type": "수입", "category": "배당금", "amount": 3255, "detail": "SOL 미국배당미국채혼합50", "method": "계좌입금", "account": "IRP", "cardAccount": null, "memo": null}, {"month": 1, "day": 19, "weekday": "월", "type": "수입", "category": "배당금", "amount": 7370, "detail": "TIGER 미국테크TOP10타겟커버드콜", "method": "계좌입금", "account": "개인연금", "cardAccount": null, "memo": null}, {"month": 1, "day": 19, "weekday": "월", "type": "수입", "category": "배당금", "amount": 1768, "detail": "KODEX 미국배당다우존스", "method": "계좌입금", "account": "개인연금", "cardAccount": null, "memo": null}, {"month": 2, "day": 9, "weekday": "월", "type": "지출", "category": "기타", "amount": 0, "detail": "테슬라계약금 (2/6)", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 2, "day": 12, "weekday": "목", "type": "지출", "category": "차량유지비", "amount": 833300, "detail": "테슬라계약금 (2/6)", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 2, "day": 1, "weekday": "일", "type": "지출", "category": "식비", "amount": 14000, "detail": "배민", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 2, "day": 1, "weekday": "일", "type": "수입", "category": "이자수익", "amount": 7, "detail": null, "method": "계좌입금", "account": "토스", "cardAccount": null, "memo": null}, {"month": 2, "day": 1, "weekday": "일", "type": "계좌이동", "category": null, "amount": 500000, "detail": null, "method": "국민", "account": "토스", "cardAccount": null, "memo": null}, {"month": 2, "day": 1, "weekday": "일", "type": "계좌이동", "category": null, "amount": 500000, "detail": null, "method": "주식", "account": "국민", "cardAccount": null, "memo": null}, {"month": 2, "day": 1, "weekday": "일", "type": "계좌이동", "category": null, "amount": 270000, "detail": null, "method": "토스", "account": "의왕", "cardAccount": null, "memo": null}, {"month": 2, "day": 2, "weekday": "월", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 2, "day": 2, "weekday": "월", "type": "수입", "category": "배당금", "amount": 4922, "detail": "삼성증권", "method": "계좌입금", "account": "주식", "cardAccount": null, "memo": null}, {"month": 2, "day": 2, "weekday": "월", "type": "계좌이동", "category": null, "amount": 200000, "detail": null, "method": "토스", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 2, "day": 3, "weekday": "화", "type": "수입", "category": "기타", "amount": 2, "detail": null, "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 2, "day": 4, "weekday": "수", "type": "지출", "category": "의료/건강", "amount": 150100, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 2, "day": 4, "weekday": "수", "type": "지출", "category": "문화생활", "amount": 30000, "detail": "사주", "method": "타인 계좌이체", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 2, "day": 4, "weekday": "수", "type": "지출", "category": "외식", "amount": 33000, "detail": "포레스트", "method": "체크카드", "account": "수원", "cardAccount": "수원", "memo": null}, {"month": 2, "day": 4, "weekday": "수", "type": "지출", "category": "교통비", "amount": 10000, "detail": "티머니 충전", "method": "현금", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 2, "day": 4, "weekday": "수", "type": "계좌이동", "category": null, "amount": 10000, "detail": null, "method": "토스", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 2, "day": 4, "weekday": "수", "type": "지출", "category": "교통비", "amount": 1250, "detail": "자전거", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 2, "day": 5, "weekday": "목", "type": "수입", "category": "이자수익", "amount": 15744, "detail": null, "method": "계좌입금", "account": "비상금", "cardAccount": null, "memo": null}, {"month": 2, "day": 5, "weekday": "목", "type": "지출", "category": "교통비", "amount": 600, "detail": "개인경비 청구 불가 택시비", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 2, "day": 5, "weekday": "목", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 2, "day": 5, "weekday": "목", "type": "지출", "category": "식비", "amount": 10000, "detail": "순대국", "method": "타인 계좌이체", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 2, "day": 5, "weekday": "목", "type": "수입", "category": "급여", "amount": 3488180, "detail": null, "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 2, "day": 5, "weekday": "목", "type": "수입", "category": "상여", "amount": 255950, "detail": null, "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 2, "day": 5, "weekday": "목", "type": "계좌이동", "category": null, "amount": 700000, "detail": null, "method": "국민", "account": "예적금", "cardAccount": null, "memo": null}, {"month": 2, "day": 5, "weekday": "목", "type": "계좌이동", "category": null, "amount": 300000, "detail": null, "method": "국민", "account": "개인연금", "cardAccount": null, "memo": null}, {"month": 2, "day": 5, "weekday": "목", "type": "계좌이동", "category": null, "amount": 1000000, "detail": null, "method": "국민", "account": "CMA", "cardAccount": null, "memo": null}, {"month": 2, "day": 5, "weekday": "목", "type": "지출", "category": "생활비", "amount": 200000, "detail": null, "method": "타인 계좌이체", "account": "국민", "cardAccount": null, "memo": null}, {"month": 2, "day": 6, "weekday": "금", "type": "지출", "category": "의류", "amount": 449000, "detail": "바이린샵 팸셀", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 2, "day": 6, "weekday": "금", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 2, "day": 6, "weekday": "금", "type": "수입", "category": "더치페이", "amount": 9000, "detail": null, "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 2, "day": 8, "weekday": "일", "type": "지출", "category": "베프", "amount": 9000, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 2, "day": 8, "weekday": "일", "type": "지출", "category": "운동", "amount": 393400, "detail": "골프 (1/3)", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": 1180000}, {"month": 2, "day": 11, "weekday": "수", "type": "지출", "category": "통신비", "amount": 3630, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 2, "day": 11, "weekday": "수", "type": "지출", "category": "간식", "amount": 4700, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 2, "day": 11, "weekday": "수", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 2, "day": 12, "weekday": "목", "type": "지출", "category": "교통비", "amount": 31000, "detail": "대리비", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 2, "day": 12, "weekday": "목", "type": "수입", "category": "배당금", "amount": 1288, "detail": "삼성증권", "method": "계좌입금", "account": "주식", "cardAccount": null, "memo": null}, {"month": 2, "day": 13, "weekday": "금", "type": "계좌이동", "category": null, "amount": 500000, "detail": null, "method": "주식", "account": "국민", "cardAccount": null, "memo": null}, {"month": 2, "day": 13, "weekday": "금", "type": "지출", "category": "외식", "amount": 20000, "detail": "엽떡", "method": "타인 계좌이체", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 2, "day": 14, "weekday": "토", "type": "지출", "category": "외식", "amount": 31000, "detail": "윤, 구님", "method": "타인 계좌이체", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 2, "day": 15, "weekday": "일", "type": "지출", "category": "기타", "amount": 29000, "detail": "??????????????????????", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": "저녁에 뭐 했지"}, {"month": 2, "day": 16, "weekday": "월", "type": "지출", "category": "커피", "amount": 6000, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 2, "day": 17, "weekday": "화", "type": "지출", "category": "외식", "amount": 18400, "detail": "윤망구", "method": "체크카드", "account": "수원", "cardAccount": "수원", "memo": null}, {"month": 2, "day": 18, "weekday": "수", "type": "지출", "category": "식비", "amount": 17800, "detail": null, "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 2, "day": 18, "weekday": "수", "type": "수입", "category": "이자수익", "amount": 126, "detail": null, "method": "계좌입금", "account": "토스", "cardAccount": null, "memo": null}, {"month": 2, "day": 18, "weekday": "수", "type": "계좌이동", "category": null, "amount": 300092, "detail": null, "method": "토스", "account": "국민", "cardAccount": null, "memo": null}, {"month": 2, "day": 18, "weekday": "수", "type": "계좌이동", "category": null, "amount": 50000, "detail": null, "method": "카카오페이", "account": "국민", "cardAccount": null, "memo": null}, {"month": 2, "day": 18, "weekday": "수", "type": "지출", "category": "기타", "amount": 11900, "detail": "키보드 팜레스트", "method": "현금", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 2, "day": 20, "weekday": "금", "type": "지출", "category": "간식", "amount": 1934, "detail": null, "method": "현금", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 2, "day": 20, "weekday": "금", "type": "계좌이동", "category": null, "amount": 1934, "detail": null, "method": "카카오페이", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 2, "day": 21, "weekday": "토", "type": "수입", "category": "이자수익", "amount": 5035, "detail": null, "method": "계좌입금", "account": "우리", "cardAccount": null, "memo": null}, {"month": 2, "day": 21, "weekday": "토", "type": "지출", "category": "커피", "amount": 6390, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 2, "day": 22, "weekday": "일", "type": "지출", "category": "커피", "amount": 2500, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 2, "day": 23, "weekday": "월", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 2, "day": 23, "weekday": "월", "type": "계좌이동", "category": null, "amount": 31734, "detail": null, "method": "국민", "account": "새마을", "cardAccount": null, "memo": null}, {"month": 2, "day": 23, "weekday": "월", "type": "계좌이동", "category": null, "amount": 20000, "detail": null, "method": "주식", "account": "새마을", "cardAccount": null, "memo": null}, {"month": 2, "day": 24, "weekday": "화", "type": "지출", "category": "간식", "amount": 5800, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 2, "day": 25, "weekday": "수", "type": "수입", "category": "기타", "amount": 1, "detail": null, "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 2, "day": 25, "weekday": "수", "type": "지출", "category": "보험", "amount": 44200, "detail": null, "method": "타인 계좌이체", "account": "새마을", "cardAccount": null, "memo": null}, {"month": 2, "day": 25, "weekday": "수", "type": "수입", "category": "더치페이", "amount": 9000, "detail": null, "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 2, "day": 25, "weekday": "수", "type": "지출", "category": "보험", "amount": 200481, "detail": null, "method": "타인 계좌이체", "account": "국민", "cardAccount": null, "memo": null}, {"month": 2, "day": 25, "weekday": "수", "type": "계좌이동", "category": null, "amount": 220000, "detail": null, "method": "주식", "account": "국민", "cardAccount": null, "memo": null}, {"month": 2, "day": 26, "weekday": "목", "type": "지출", "category": "외식", "amount": 118000, "detail": "회식", "method": "타인 계좌이체", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 2, "day": 26, "weekday": "목", "type": "지출", "category": "교통비", "amount": 34000, "detail": "대리비", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 2, "day": 26, "weekday": "목", "type": "계좌이동", "category": null, "amount": 6001104, "detail": null, "method": "CMA", "account": "국민", "cardAccount": null, "memo": null}, {"month": 2, "day": 26, "weekday": "목", "type": "수입", "category": "기타", "amount": 2, "detail": null, "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 2, "day": 26, "weekday": "목", "type": "계좌이동", "category": null, "amount": 9000000, "detail": null, "method": "비상금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 2, "day": 26, "weekday": "목", "type": "계좌이동", "category": null, "amount": 15000000, "detail": null, "method": "국민", "account": "예적금", "cardAccount": null, "memo": null}, {"month": 2, "day": 26, "weekday": "목", "type": "수입", "category": "더치페이", "amount": 9000, "detail": "이가을 넷플", "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 2, "day": 27, "weekday": "금", "type": "지출", "category": "구독료", "amount": 9000, "detail": "넷플", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 2, "day": 27, "weekday": "금", "type": "수입", "category": "이자수익", "amount": 236460, "detail": null, "method": "계좌입금", "account": "예적금", "cardAccount": null, "memo": null}, {"month": 2, "day": 27, "weekday": "금", "type": "수입", "category": "이자수익", "amount": 241960, "detail": null, "method": "계좌입금", "account": "예적금", "cardAccount": null, "memo": null}, {"month": 2, "day": 27, "weekday": "금", "type": "수입", "category": "이자수익", "amount": 236460, "detail": null, "method": "계좌입금", "account": "예적금", "cardAccount": null, "memo": null}, {"month": 2, "day": 27, "weekday": "금", "type": "계좌이동", "category": null, "amount": 2434880, "detail": null, "method": "예적금", "account": "비상금", "cardAccount": null, "memo": null}, {"month": 2, "day": 27, "weekday": "금", "type": "수입", "category": "잔액조정", "amount": 101400, "detail": "개인경비", "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 2, "day": 27, "weekday": "금", "type": "지출", "category": "식비", "amount": 26800, "detail": "개인경비 청구예정", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 2, "day": 28, "weekday": "토", "type": "지출", "category": "운동", "amount": 49500, "detail": null, "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 2, "day": 28, "weekday": "토", "type": "수입", "category": "이자수익", "amount": 721020, "detail": null, "method": "계좌입금", "account": "예적금", "cardAccount": null, "memo": null}, {"month": 2, "day": 28, "weekday": "토", "type": "계좌이동", "category": null, "amount": 30461020, "detail": null, "method": "예적금", "account": "비상금", "cardAccount": null, "memo": null}, {"month": 2, "day": 28, "weekday": "토", "type": "계좌이동", "category": null, "amount": 260000, "detail": null, "method": "예적금", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 2, "day": 28, "weekday": "토", "type": "지출", "category": "계", "amount": 10000, "detail": null, "method": "타인 계좌이체", "account": "국민", "cardAccount": null, "memo": null}, {"month": 2, "day": 28, "weekday": "토", "type": "계좌이동", "category": null, "amount": 7534, "detail": null, "method": "새마을", "account": "비상금", "cardAccount": null, "memo": null}, {"month": 2, "day": 26, "weekday": "목", "type": "수입", "category": "이자수익", "amount": 15682, "detail": null, "method": "계좌입금", "account": "CMA", "cardAccount": null, "memo": null}, {"month": 2, "day": 28, "weekday": "토", "type": "수입", "category": "이자수익", "amount": 679, "detail": null, "method": "계좌입금", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 2, "day": 21, "weekday": "토", "type": "지출", "category": "주유", "amount": 70000, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 2, "day": 1, "weekday": "일", "type": "수입", "category": "포인트", "amount": 30000, "detail": null, "method": "계좌입금", "account": "의왕", "cardAccount": null, "memo": null}, {"month": 2, "day": 3, "weekday": "화", "type": "수입", "category": "배당금", "amount": 6175, "detail": "TIGER 미국S&P500", "method": "계좌입금", "account": "개인연금", "cardAccount": null, "memo": null}, {"month": 2, "day": 3, "weekday": "화", "type": "수입", "category": "배당금", "amount": 6750, "detail": "TIGER 미국나스닥100", "method": "계좌입금", "account": "개인연금", "cardAccount": null, "memo": null}, {"month": 2, "day": 20, "weekday": "금", "type": "수입", "category": "배당금", "amount": 7740, "detail": "TIGER 미국테크TOP10타겟커버드콜", "method": "계좌입금", "account": "개인연금", "cardAccount": null, "memo": null}, {"month": 2, "day": 3, "weekday": "화", "type": "수입", "category": "배당금", "amount": 3900, "detail": "TIGER 미국필라델피아AI반도체나스닥", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 2, "day": 3, "weekday": "화", "type": "수입", "category": "배당금", "amount": 13200, "detail": "TIGER 미국배당다우존스타겟커버드콜2호", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 2, "day": 3, "weekday": "화", "type": "수입", "category": "배당금", "amount": 26656, "detail": "KODEX 미국나스닥100", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 2, "day": 3, "weekday": "화", "type": "수입", "category": "배당금", "amount": 25740, "detail": "TIGER 미국S&P500", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 2, "day": 3, "weekday": "화", "type": "수입", "category": "배당금", "amount": 2250, "detail": "TIGER 미국나스닥100", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 2, "day": 3, "weekday": "화", "type": "수입", "category": "배당금", "amount": 10836, "detail": "PLUS 고배당주", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 2, "day": 2, "weekday": "월", "type": "수입", "category": "배당금", "amount": 10150, "detail": "SOL CD금리&머니마켓액티브", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 2, "day": 19, "weekday": "목", "type": "수입", "category": "배당금", "amount": 2520, "detail": "SOL 미국배당미국채혼합50", "method": "계좌입금", "account": "IRP", "cardAccount": null, "memo": null}, {"month": 2, "day": 3, "weekday": "화", "type": "수입", "category": "배당금", "amount": 5175, "detail": "TIGER 미국나스닥100", "method": "계좌입금", "account": "IRP", "cardAccount": null, "memo": null}, {"month": 2, "day": 3, "weekday": "화", "type": "수입", "category": "배당금", "amount": 7215, "detail": "TIGER 미국S&P500", "method": "계좌입금", "account": "IRP", "cardAccount": null, "memo": null}, {"month": 2, "day": 3, "weekday": "화", "type": "수입", "category": "배당금", "amount": 4307, "detail": "TIGER 미국나스닥100채권혼합Fn", "method": "계좌입금", "account": "IRP", "cardAccount": null, "memo": null}, {"month": 2, "day": 3, "weekday": "화", "type": "수입", "category": "배당금", "amount": 2300, "detail": "ACE 미국30년국채액티브(H)", "method": "계좌입금", "account": "IRP", "cardAccount": null, "memo": null}, {"month": 2, "day": 3, "weekday": "화", "type": "수입", "category": "배당금", "amount": 3200, "detail": "TIGER 미국배당다우존스", "method": "계좌입금", "account": "IRP", "cardAccount": null, "memo": null}, {"month": 2, "day": 28, "weekday": "토", "type": "지출", "category": "교통비", "amount": 88200, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 9, "weekday": "월", "type": "지출", "category": "기타", "amount": 0, "detail": "테슬라계약금 (3/6)", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 12, "weekday": "목", "type": "지출", "category": "차량유지비", "amount": 833300, "detail": "테슬라계약금 (3/6)", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 8, "weekday": "일", "type": "지출", "category": "운동", "amount": 393300, "detail": "골프 (2/3)", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 1, "weekday": "일", "type": "지출", "category": "식비", "amount": 17000, "detail": "배민", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 2, "weekday": "월", "type": "지출", "category": "의료/건강", "amount": 22000, "detail": "약국", "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 3, "day": 2, "weekday": "월", "type": "지출", "category": "커피", "amount": 3000, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 3, "day": 2, "weekday": "월", "type": "지출", "category": "휴식", "amount": 5000, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 3, "day": 2, "weekday": "월", "type": "지출", "category": "커피", "amount": 6030, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 3, "day": 2, "weekday": "월", "type": "지출", "category": "간식", "amount": 3300, "detail": null, "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 2, "weekday": "월", "type": "지출", "category": "의류", "amount": 180200, "detail": "의류 (1/3)", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": -180000}, {"month": 3, "day": 3, "weekday": "화", "type": "수입", "category": "기타", "amount": 1, "detail": null, "method": "계좌입금", "account": "주식", "cardAccount": null, "memo": 360200}, {"month": 3, "day": 4, "weekday": "수", "type": "지출", "category": "기타", "amount": 75539, "detail": "키보드", "method": "현금", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 3, "day": 4, "weekday": "수", "type": "계좌이동", "category": null, "amount": 60000, "detail": null, "method": "국민", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 3, "day": 5, "weekday": "목", "type": "수입", "category": "이자수익", "amount": 15827, "detail": null, "method": "계좌입금", "account": "비상금", "cardAccount": null, "memo": null}, {"month": 3, "day": 5, "weekday": "목", "type": "수입", "category": "급여", "amount": 4899900, "detail": null, "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 3, "day": 5, "weekday": "목", "type": "지출", "category": "생활비", "amount": 200000, "detail": null, "method": "타인 계좌이체", "account": "국민", "cardAccount": null, "memo": null}, {"month": 3, "day": 5, "weekday": "목", "type": "계좌이동", "category": null, "amount": 700000, "detail": null, "method": "국민", "account": "예적금", "cardAccount": null, "memo": null}, {"month": 3, "day": 5, "weekday": "목", "type": "계좌이동", "category": null, "amount": 300000, "detail": null, "method": "국민", "account": "개인연금", "cardAccount": null, "memo": null}, {"month": 3, "day": 5, "weekday": "목", "type": "지출", "category": "휴식", "amount": 5600, "detail": null, "method": "체크카드", "account": "카카오페이", "cardAccount": "카카오페이", "memo": null}, {"month": 3, "day": 6, "weekday": "금", "type": "지출", "category": "커피", "amount": 5400, "detail": null, "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 6, "weekday": "금", "type": "지출", "category": "문화생활", "amount": 2000, "detail": "코노 물", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 7, "weekday": "토", "type": "지출", "category": "휴식", "amount": 5000, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 3, "day": 7, "weekday": "토", "type": "지출", "category": "간식", "amount": 7900, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 3, "day": 8, "weekday": "일", "type": "지출", "category": "커피", "amount": 1600, "detail": null, "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 8, "weekday": "일", "type": "지출", "category": "교통비", "amount": 2200, "detail": "주차료", "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 3, "day": 8, "weekday": "일", "type": "지출", "category": "베프", "amount": 9200, "detail": "카페", "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 3, "day": 9, "weekday": "월", "type": "계좌이동", "category": null, "amount": 3769926, "detail": null, "method": "국민", "account": "CMA", "cardAccount": null, "memo": null}, {"month": 3, "day": 11, "weekday": "수", "type": "지출", "category": "통신비", "amount": 3630, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 11, "weekday": "수", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 11, "weekday": "수", "type": "지출", "category": "간식", "amount": 10000, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 13, "weekday": "금", "type": "계좌이동", "category": null, "amount": 2900000, "detail": null, "method": "비상금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 3, "day": 13, "weekday": "금", "type": "지출", "category": "식비", "amount": 5400, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 13, "weekday": "금", "type": "지출", "category": "간식", "amount": 1700, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 3, "day": 14, "weekday": "토", "type": "지출", "category": "식비", "amount": 23000, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 15, "weekday": "일", "type": "지출", "category": "주유", "amount": 70200, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 16, "weekday": "월", "type": "계좌이동", "category": null, "amount": 260000, "detail": null, "method": "비상금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 3, "day": 17, "weekday": "화", "type": "지출", "category": "간식", "amount": 4200, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 3, "day": 18, "weekday": "수", "type": "수입", "category": "기타", "amount": 2, "detail": null, "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 3, "day": 18, "weekday": "수", "type": "지출", "category": "간식", "amount": 10190, "detail": null, "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 19, "weekday": "목", "type": "지출", "category": "휴식", "amount": 5000, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 3, "day": 19, "weekday": "목", "type": "지출", "category": "간식", "amount": 7200, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 3, "day": 19, "weekday": "목", "type": "계좌이동", "category": null, "amount": 30695726, "detail": null, "method": "비상금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 3, "day": 19, "weekday": "목", "type": "계좌이동", "category": null, "amount": 5588140, "detail": null, "method": "CMA", "account": "국민", "cardAccount": null, "memo": null}, {"month": 3, "day": 19, "weekday": "목", "type": "계좌이동", "category": null, "amount": 7939147, "detail": null, "method": "예적금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 3, "day": 19, "weekday": "목", "type": "계좌이동", "category": null, "amount": 7939147, "detail": null, "method": "예적금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 3, "day": 19, "weekday": "목", "type": "수입", "category": "이자수익", "amount": 19147, "detail": null, "method": "계좌입금", "account": "예적금", "cardAccount": null, "memo": null}, {"month": 3, "day": 19, "weekday": "목", "type": "수입", "category": "이자수익", "amount": 19147, "detail": null, "method": "계좌입금", "account": "예적금", "cardAccount": null, "memo": null}, {"month": 3, "day": 19, "weekday": "목", "type": "지출", "category": "차량유지비", "amount": 51990000, "detail": null, "method": "현금", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 3, "day": 19, "weekday": "목", "type": "계좌이동", "category": null, "amount": 51990000, "detail": null, "method": "국민", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 3, "day": 19, "weekday": "목", "type": "지출", "category": "간식", "amount": 3900, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 3, "day": 20, "weekday": "금", "type": "계좌이동", "category": null, "amount": 45000, "detail": null, "method": "국민", "account": "새마을", "cardAccount": null, "memo": null}, {"month": 3, "day": 20, "weekday": "금", "type": "지출", "category": "차량유지비", "amount": 149980, "detail": "차량 보험료 (1/5) 748,380", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 20, "weekday": "금", "type": "계좌이동", "category": null, "amount": 100000, "detail": "틴팅 계약금", "method": "카카오페이", "account": "국민", "cardAccount": null, "memo": null}, {"month": 3, "day": 20, "weekday": "금", "type": "지출", "category": "보험", "amount": 44200, "detail": null, "method": "타인 계좌이체", "account": "새마을", "cardAccount": null, "memo": null}, {"month": 3, "day": 20, "weekday": "금", "type": "수입", "category": "이자수익", "amount": 187, "detail": null, "method": "계좌입금", "account": "새마을", "cardAccount": null, "memo": null}, {"month": 3, "day": 21, "weekday": "토", "type": "지출", "category": "교통비", "amount": 10000, "detail": "티머니 충전", "method": "현금", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 3, "day": 21, "weekday": "토", "type": "계좌이동", "category": null, "amount": 10000, "detail": null, "method": "국민", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 3, "day": 21, "weekday": "토", "type": "지출", "category": "간식", "amount": 1500, "detail": "빵", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 21, "weekday": "토", "type": "지출", "category": "간식", "amount": 5300, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 21, "weekday": "토", "type": "지출", "category": "외식", "amount": 11500, "detail": "떡볶이", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 21, "weekday": "토", "type": "수입", "category": "이자수익", "amount": 4036, "detail": null, "method": "계좌입금", "account": "우리", "cardAccount": null, "memo": null}, {"month": 3, "day": 21, "weekday": "토", "type": "지출", "category": "간식", "amount": 2000, "detail": "메고지고 떡창고", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 21, "weekday": "토", "type": "지출", "category": "문화생활", "amount": 93000, "detail": "문화상품권 구매", "method": "현금", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 3, "day": 21, "weekday": "토", "type": "지출", "category": "교통비", "amount": 1500, "detail": "주차료", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 21, "weekday": "토", "type": "계좌이동", "category": null, "amount": 93000, "detail": null, "method": "국민", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 3, "day": 22, "weekday": "일", "type": "지출", "category": "커피", "amount": 4950, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 3, "day": 22, "weekday": "일", "type": "지출", "category": "베프", "amount": 46000, "detail": "쌀국수", "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 3, "day": 23, "weekday": "월", "type": "수입", "category": "잔액조정", "amount": 1666800, "detail": "테슬라 계약금 환입", "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 3, "day": 23, "weekday": "월", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 24, "weekday": "화", "type": "지출", "category": "휴식", "amount": 1000, "detail": null, "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 25, "weekday": "수", "type": "수입", "category": "더치페이", "amount": 9000, "detail": "윤선은 넷플", "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 3, "day": 25, "weekday": "수", "type": "지출", "category": "차량유지비", "amount": 2000, "detail": "차량등록", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 25, "weekday": "수", "type": "지출", "category": "차량유지비", "amount": 2419340, "detail": "취득세+900 수수료", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 25, "weekday": "수", "type": "지출", "category": "차량유지비", "amount": 24000, "detail": "번호판", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 25, "weekday": "수", "type": "지출", "category": "차량유지비", "amount": 3000, "detail": "인지세", "method": "현금", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 3, "day": 25, "weekday": "수", "type": "지출", "category": "경조사", "amount": 217500, "detail": "소영이 딸 돌반지", "method": "타인 계좌이체", "account": "국민", "cardAccount": null, "memo": null}, {"month": 3, "day": 25, "weekday": "수", "type": "지출", "category": "보험", "amount": 200976, "detail": null, "method": "타인 계좌이체", "account": "국민", "cardAccount": null, "memo": null}, {"month": 3, "day": 26, "weekday": "목", "type": "지출", "category": "간식", "amount": 4800, "detail": "자양강장제", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 26, "weekday": "목", "type": "지출", "category": "주유", "amount": 70000, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 26, "weekday": "목", "type": "지출", "category": "문화생활", "amount": 11000, "detail": "뽑기", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 26, "weekday": "목", "type": "지출", "category": "문화생활", "amount": 3000, "detail": "펀치", "method": "현금", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 3, "day": 27, "weekday": "금", "type": "지출", "category": "구독료", "amount": 9000, "detail": "넷플", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 27, "weekday": "금", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 29, "weekday": "일", "type": "지출", "category": "커피", "amount": 2500, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 3, "day": 21, "weekday": "토", "type": "지출", "category": "의료/건강", "amount": 210000, "detail": "렌즈 구입", "method": "체크카드", "account": "수원", "cardAccount": "수원", "memo": null}, {"month": 3, "day": 21, "weekday": "토", "type": "수입", "category": "포인트", "amount": 30000, "detail": "통큰세일", "method": "계좌입금", "account": "수원", "cardAccount": null, "memo": null}, {"month": 3, "day": 28, "weekday": "토", "type": "지출", "category": "외식", "amount": 5800, "detail": "아큼", "method": "체크카드", "account": "수원", "cardAccount": "수원", "memo": null}, {"month": 3, "day": 28, "weekday": "토", "type": "수입", "category": "이자수익", "amount": 3636, "detail": null, "method": "계좌입금", "account": "CMA", "cardAccount": null, "memo": null}, {"month": 3, "day": 28, "weekday": "토", "type": "수입", "category": "이자수익", "amount": 780, "detail": null, "method": "계좌입금", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 3, "day": 17, "weekday": "화", "type": "수입", "category": "배당금", "amount": 7560, "detail": "TIGER 미국테크TOP10타겟커버드콜", "method": "계좌입금", "account": "개인연금", "cardAccount": null, "memo": null}, {"month": 3, "day": 3, "weekday": "화", "type": "수입", "category": "배당금", "amount": 8400, "detail": "SOL CD금리&머니마켓액티브", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 3, "day": 4, "weekday": "수", "type": "수입", "category": "배당금", "amount": 14100, "detail": "TIGER 미국배당다우존스타겟커버드콜2호", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 3, "day": 4, "weekday": "수", "type": "수입", "category": "배당금", "amount": 10836, "detail": "PLUS 고배당주", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 3, "day": 16, "weekday": "월", "type": "수입", "category": "배당금", "amount": 3150, "detail": "SOL 미국배당미국채혼합50", "method": "계좌입금", "account": "IRP", "cardAccount": null, "memo": null}, {"month": 3, "day": 4, "weekday": "수", "type": "수입", "category": "배당금", "amount": 3800, "detail": "TIGER 미국배당다우존스", "method": "계좌입금", "account": "IRP", "cardAccount": null, "memo": null}, {"month": 3, "day": 4, "weekday": "수", "type": "수입", "category": "배당금", "amount": 2300, "detail": "ACE 미국30년국채액티브(H)", "method": "계좌입금", "account": "IRP", "cardAccount": null, "memo": null}, {"month": 3, "day": 29, "weekday": "일", "type": "계좌이동", "category": null, "amount": 217500, "detail": "소영이 딸 돌반지 (혜승)", "method": "국민", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 3, "day": 30, "weekday": "월", "type": "지출", "category": "차량유지비", "amount": 1390000, "detail": "틴팅, PPF", "method": "타인 계좌이체", "account": "국민", "cardAccount": null, "memo": null}, {"month": 3, "day": 30, "weekday": "월", "type": "계좌이동", "category": null, "amount": 1000000, "detail": null, "method": "우리", "account": "국민", "cardAccount": null, "memo": null}, {"month": 3, "day": 30, "weekday": "월", "type": "지출", "category": "식비", "amount": 4000, "detail": "음료수", "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 3, "day": 30, "weekday": "월", "type": "지출", "category": "식비", "amount": 32800, "detail": "저녁", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 30, "weekday": "월", "type": "지출", "category": "차량유지비", "amount": 334000, "detail": "테슬라 DC콤보 (1000원 삼카할인받음)", "method": "신용카드", "account": "국민", "cardAccount": null, "memo": null}, {"month": 3, "day": 30, "weekday": "월", "type": "지출", "category": "커피", "amount": 11600, "detail": "커스텀커피", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 30, "weekday": "월", "type": "수입", "category": "포인트", "amount": 1, "detail": null, "method": "계좌입금", "account": "토스", "cardAccount": null, "memo": null}, {"month": 3, "day": 30, "weekday": "월", "type": "지출", "category": "교통비", "amount": 10000, "detail": "티머니 충전", "method": "타인 계좌이체", "account": "국민", "cardAccount": null, "memo": null}, {"month": 3, "day": 31, "weekday": "화", "type": "지출", "category": "교통비", "amount": 77980, "detail": "하이패스", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 31, "weekday": "화", "type": "지출", "category": "주유", "amount": 9519, "detail": "충전비", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 3, "day": 31, "weekday": "화", "type": "수입", "category": "포인트", "amount": 519900, "detail": "테슬라 캐시백", "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 3, "day": 31, "weekday": "화", "type": "수입", "category": "배당금", "amount": 850, "detail": "미국주식 배당금 (삼성증권)", "method": "계좌입금", "account": "주식", "cardAccount": null, "memo": null}, {"month": 3, "day": 31, "weekday": "화", "type": "수입", "category": "잔액조정", "amount": 90000, "detail": "개인경비", "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 3, "day": 31, "weekday": "화", "type": "지출", "category": "생활비", "amount": 22200, "detail": "엄마 하이패스", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 12, "weekday": "일", "type": "지출", "category": "차량유지비", "amount": 833300, "detail": "테슬라계약금 (4/6)", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 8, "weekday": "수", "type": "지출", "category": "운동", "amount": 393300, "detail": "골프 (3/3)", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 2, "weekday": "목", "type": "지출", "category": "의류", "amount": 180100, "detail": "의류 (2/3)", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 20, "weekday": "월", "type": "지출", "category": "차량유지비", "amount": 149600, "detail": "차량 보험료 (2/5) 748,380", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 1, "weekday": "수", "type": "수입", "category": "배당금", "amount": 9100, "detail": null, "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 4, "day": 2, "weekday": "목", "type": "수입", "category": "배당금", "amount": 10836, "detail": null, "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 4, "day": 2, "weekday": "목", "type": "수입", "category": "배당금", "amount": 14100, "detail": null, "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 4, "day": 2, "weekday": "목", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 2, "weekday": "목", "type": "수입", "category": "배당금", "amount": 60, "detail": null, "method": "계좌입금", "account": "주식", "cardAccount": null, "memo": null}, {"month": 4, "day": 2, "weekday": "목", "type": "지출", "category": null, "amount": 22700, "detail": "쿠팡", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 2, "weekday": "목", "type": "지출", "category": "식비", "amount": 18500, "detail": "엽떡", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 3, "weekday": "금", "type": "지출", "category": "휴식", "amount": 9500, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 4, "day": 3, "weekday": "금", "type": "지출", "category": "간식", "amount": 6700, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 4, "day": 3, "weekday": "금", "type": "수입", "category": "급여", "amount": 3749130, "detail": null, "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 4, "day": 4, "weekday": "토", "type": "지출", "category": "주유", "amount": 14264, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 4, "weekday": "토", "type": "지출", "category": null, "amount": 85400, "detail": "쿠팡", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 4, "weekday": "토", "type": "지출", "category": "커피", "amount": 1600, "detail": "메가커피", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 4, "weekday": "토", "type": "지출", "category": "식비", "amount": 1000, "detail": "빵", "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 4, "day": 5, "weekday": "일", "type": "수입", "category": "이자수익", "amount": 30966, "detail": null, "method": "계좌입금", "account": "비상금", "cardAccount": null, "memo": null}, {"month": 4, "day": 5, "weekday": "일", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 4, "day": 5, "weekday": "일", "type": "지출", "category": "커피", "amount": 1800, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 4, "day": 5, "weekday": "일", "type": "수입", "category": "더치페이", "amount": 42200, "detail": "윤선은", "method": "계좌입금", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 4, "day": 5, "weekday": "일", "type": "지출", "category": null, "amount": 19190, "detail": "쿠팡", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 6, "weekday": "월", "type": "계좌이동", "category": null, "amount": 700000, "detail": null, "method": "국민", "account": "예적금", "cardAccount": null, "memo": null}, {"month": 4, "day": 6, "weekday": "월", "type": "계좌이동", "category": null, "amount": 300000, "detail": null, "method": "국민", "account": "개인연금", "cardAccount": null, "memo": null}, {"month": 4, "day": 6, "weekday": "월", "type": "지출", "category": "생활비", "amount": 200000, "detail": null, "method": "타인 계좌이체", "account": "국민", "cardAccount": null, "memo": null}, {"month": 4, "day": 6, "weekday": "월", "type": "지출", "category": "의류", "amount": 154334, "detail": "신발, 옷", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 6, "weekday": "월", "type": "지출", "category": "의류", "amount": 0, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 6, "weekday": "월", "type": "수입", "category": "더치페이", "amount": 9000, "detail": "이가을 넷플", "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 4, "day": 6, "weekday": "월", "type": "지출", "category": "휴식", "amount": 1000, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 8, "weekday": "수", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 8, "weekday": "수", "type": "수입", "category": "포인트", "amount": 1, "detail": null, "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 4, "day": 9, "weekday": "목", "type": "지출", "category": "주유", "amount": 12381, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 9, "weekday": "목", "type": "수입", "category": "배당금", "amount": 2636, "detail": "삼성증권 미국주식", "method": "계좌입금", "account": "주식", "cardAccount": null, "memo": null}, {"month": 4, "day": 10, "weekday": "금", "type": "수입", "category": "이자수익", "amount": 1898, "detail": null, "method": "계좌입금", "account": "개인연금", "cardAccount": null, "memo": null}, {"month": 4, "day": 10, "weekday": "금", "type": "수입", "category": "이자수익", "amount": 1973, "detail": null, "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 4, "day": 10, "weekday": "금", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 4, "day": 10, "weekday": "금", "type": "지출", "category": "간식", "amount": 4900, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 4, "day": 10, "weekday": "금", "type": "지출", "category": "식비", "amount": 19000, "detail": "배민", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 11, "weekday": "토", "type": "지출", "category": "구독료", "amount": 32786, "detail": "클로드 구독", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 12, "weekday": "일", "type": "지출", "category": "커피", "amount": 1600, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 4, "day": 13, "weekday": "월", "type": "지출", "category": "통신비", "amount": 3630, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 13, "weekday": "월", "type": "계좌이동", "category": null, "amount": 1009071, "detail": null, "method": "우리", "account": "국민", "cardAccount": null, "memo": null}, {"month": 4, "day": 14, "weekday": "화", "type": "계좌이동", "category": null, "amount": 100000, "detail": null, "method": "카카오페이", "account": "국민", "cardAccount": null, "memo": null}, {"month": 4, "day": 15, "weekday": "수", "type": "지출", "category": "휴식", "amount": 1000, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 15, "weekday": "수", "type": "지출", "category": "커피", "amount": 10500, "detail": "구매팀", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 15, "weekday": "수", "type": "지출", "category": "외식", "amount": 110000, "detail": "구매 회식", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 15, "weekday": "수", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 16, "weekday": "목", "type": "수입", "category": "잔액조정", "amount": 44000, "detail": "깡우동 카드깡", "method": "계좌입금", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 4, "day": 17, "weekday": "금", "type": "수입", "category": "배당금", "amount": 478, "detail": "신한증권", "method": "계좌입금", "account": "주식", "cardAccount": null, "memo": null}, {"month": 4, "day": 17, "weekday": "금", "type": "수입", "category": "배당금", "amount": 7560, "detail": null, "method": "계좌입금", "account": "개인연금", "cardAccount": null, "memo": null}, {"month": 4, "day": 17, "weekday": "금", "type": "지출", "category": "커피", "amount": 5400, "detail": "구매팀", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 18, "weekday": "토", "type": "수입", "category": "이자수익", "amount": 2385, "detail": null, "method": "계좌입금", "account": "우리", "cardAccount": null, "memo": null}, {"month": 4, "day": 18, "weekday": "토", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 18, "weekday": "토", "type": "지출", "category": "간식", "amount": 2300, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 19, "weekday": "일", "type": "지출", "category": "생필품", "amount": 7000, "detail": "다이소", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 19, "weekday": "일", "type": "지출", "category": "차량유지비", "amount": 163928, "detail": "알리", "method": "타인 계좌이체", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 4, "day": 20, "weekday": "월", "type": "지출", "category": "간식", "amount": 3500, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 4, "day": 20, "weekday": "월", "type": "계좌이동", "category": null, "amount": 45000, "detail": null, "method": "국민", "account": "새마을", "cardAccount": null, "memo": null}, {"month": 4, "day": 20, "weekday": "월", "type": "지출", "category": "보험", "amount": 44200, "detail": null, "method": "타인 계좌이체", "account": "새마을", "cardAccount": null, "memo": null}, {"month": 4, "day": 21, "weekday": "화", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 22, "weekday": "수", "type": "지출", "category": "식비", "amount": 14460, "detail": "엽떡", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 23, "weekday": "목", "type": "수입", "category": "배당금", "amount": 150, "detail": null, "method": "계좌입금", "account": "주식", "cardAccount": null, "memo": null}, {"month": 4, "day": 23, "weekday": "목", "type": "수입", "category": "배당금", "amount": 5500, "detail": "신한증권", "method": "계좌입금", "account": "주식", "cardAccount": null, "memo": null}, {"month": 4, "day": 24, "weekday": "금", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 4, "day": 24, "weekday": "금", "type": "지출", "category": "간식", "amount": 1700, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 4, "day": 24, "weekday": "금", "type": "수입", "category": "더치페이", "amount": 9000, "detail": "윤선은 넷플", "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 4, "day": 25, "weekday": "토", "type": "지출", "category": "커피", "amount": 1600, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 25, "weekday": "토", "type": "지출", "category": "간식", "amount": 1700, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 4, "day": 25, "weekday": "토", "type": "지출", "category": "커피", "amount": 2000, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 4, "day": 25, "weekday": "토", "type": "수입", "category": "잔액조정", "amount": 50000, "detail": "엄마 주유 카드깡", "method": "현금", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 4, "day": 26, "weekday": "일", "type": "지출", "category": "커피", "amount": 2400, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 4, "day": 26, "weekday": "일", "type": "지출", "category": "휴식", "amount": 9500, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 4, "day": 26, "weekday": "일", "type": "지출", "category": "간식", "amount": 5700, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 4, "day": 27, "weekday": "월", "type": "지출", "category": "구독료", "amount": 9000, "detail": "넷플", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 27, "weekday": "월", "type": "지출", "category": "교통비", "amount": 8500, "detail": "공항버스", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 28, "weekday": "화", "type": "지출", "category": "차량유지비", "amount": 433333.3333333333, "detail": "테슬라  EWI (1/6)", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 29, "weekday": "수", "type": "지출", "category": "의료/건강", "amount": 200000, "detail": "알레르기 검사", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 29, "weekday": "수", "type": "지출", "category": "의료/건강", "amount": 35000, "detail": "위내시경 조직검사", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 29, "weekday": "수", "type": "지출", "category": "식비", "amount": 8500, "detail": "맥날", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 29, "weekday": "수", "type": "지출", "category": "차량유지비", "amount": 28600, "detail": "테슬라 클립2개, 공기압 서비스", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 29, "weekday": "수", "type": "수입", "category": "더치페이", "amount": 9000, "detail": "이가을 넷플", "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 4, "day": 29, "weekday": "수", "type": "지출", "category": "커피", "amount": 10000, "detail": "스벅 충전", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 29, "weekday": "수", "type": "계좌이동", "category": null, "amount": 2385, "detail": null, "method": "우리", "account": "국민", "cardAccount": null, "memo": null}, {"month": 4, "day": 29, "weekday": "수", "type": "계좌이동", "category": null, "amount": 1787, "detail": null, "method": "새마을", "account": "국민", "cardAccount": null, "memo": null}, {"month": 4, "day": 29, "weekday": "수", "type": "지출", "category": "차량유지비", "amount": 36666.666666666664, "detail": "테슬라 프로젝션 (1/3) 110,000", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 29, "weekday": "수", "type": "지출", "category": "외식", "amount": 54000, "detail": "포차 회식", "method": "타인 계좌이체", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 4, "day": 30, "weekday": "목", "type": "지출", "category": "차량유지비", "amount": -30000, "detail": "롯데카드 캐시백 (보험료)", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 30, "weekday": "목", "type": "수입", "category": "잔액조정", "amount": 30000, "detail": "롯데카드 캐시백 (보험료)", "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 4, "day": 30, "weekday": "목", "type": "계좌이동", "category": null, "amount": 150000, "detail": null, "method": "카카오페이", "account": "국민", "cardAccount": null, "memo": null}, {"month": 4, "day": 30, "weekday": "목", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 4, "day": 30, "weekday": "목", "type": "수입", "category": "잔액조정", "amount": 50000, "detail": "개인경비", "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 4, "day": 30, "weekday": "목", "type": "지출", "category": "보험", "amount": 200976, "detail": null, "method": "타인 계좌이체", "account": "국민", "cardAccount": null, "memo": null}, {"month": 4, "day": 30, "weekday": "목", "type": "수입", "category": "이자수익", "amount": 1134, "detail": "메리츠 RP", "method": "계좌입금", "account": "주식", "cardAccount": null, "memo": null}, {"month": 4, "day": 30, "weekday": "목", "type": "수입", "category": "이자수익", "amount": 1032, "detail": null, "method": "계좌입금", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 4, "day": 30, "weekday": "목", "type": "지출", "category": "교통비", "amount": 64340, "detail": null, "method": null, "account": null, "cardAccount": null, "memo": null}, {"month": 5, "day": 12, "weekday": "화", "type": "지출", "category": "차량유지비", "amount": 833300, "detail": "테슬라계약금 (5/6)", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 20, "weekday": "수", "type": "지출", "category": "의류", "amount": 180100, "detail": "의류 (3/3)", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 28, "weekday": "목", "type": "지출", "category": "차량유지비", "amount": 149600, "detail": "차량 보험료 (3/5) 748,380", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 29, "weekday": "금", "type": "지출", "category": "차량유지비", "amount": 433500, "detail": "테슬라  EWI (2/6)", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 29, "weekday": "금", "type": "지출", "category": "차량유지비", "amount": 36800, "detail": "테슬라 프로젝션 (2/3) 110,000", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 1, "weekday": "금", "type": "지출", "category": "식비", "amount": 2000, "detail": "생수", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 2, "weekday": "토", "type": "지출", "category": "커피", "amount": 1600, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 5, "day": 2, "weekday": "토", "type": "지출", "category": "문화생활", "amount": 20000, "detail": "타로", "method": "타인 계좌이체", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 5, "day": 3, "weekday": "일", "type": "계좌이동", "category": null, "amount": 100000, "detail": null, "method": "주식", "account": "국민", "cardAccount": null, "memo": null}, {"month": 5, "day": 3, "weekday": "일", "type": "계좌이동", "category": null, "amount": 180000, "detail": "온누리", "method": "국민", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 5, "day": 3, "weekday": "일", "type": "지출", "category": "미용", "amount": 180000, "detail": "파마, 온누리 상품권 사용", "method": "현금", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 5, "day": 3, "weekday": "일", "type": "지출", "category": "계", "amount": 30000, "detail": "3,4,5월 곗돈", "method": "타인 계좌이체", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 5, "day": 4, "weekday": "월", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 5, "day": 4, "weekday": "월", "type": "지출", "category": "간식", "amount": 2000, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 5, "day": 4, "weekday": "월", "type": "수입", "category": "급여", "amount": 3667740, "detail": null, "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 5, "day": 4, "weekday": "월", "type": "지출", "category": "생활비", "amount": 200000, "detail": null, "method": "타인 계좌이체", "account": "국민", "cardAccount": null, "memo": null}, {"month": 5, "day": 4, "weekday": "월", "type": "계좌이동", "category": null, "amount": 700000, "detail": "청도계", "method": "국민", "account": "예적금", "cardAccount": null, "memo": null}, {"month": 5, "day": 4, "weekday": "월", "type": "계좌이동", "category": null, "amount": 300000, "detail": null, "method": "국민", "account": "개인연금", "cardAccount": null, "memo": null}, {"month": 5, "day": 5, "weekday": "화", "type": "수입", "category": "이자수익", "amount": 52, "detail": null, "method": "계좌입금", "account": "비상금", "cardAccount": null, "memo": null}, {"month": 5, "day": 5, "weekday": "화", "type": "지출", "category": "생필품", "amount": 2000, "detail": "다이소", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 5, "weekday": "화", "type": "계좌이동", "category": null, "amount": 100000, "detail": null, "method": "국민", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 5, "day": 5, "weekday": "화", "type": "지출", "category": "경조사", "amount": 100000, "detail": "주애, 주이 어린이날 용돈", "method": "현금", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 5, "day": 5, "weekday": "화", "type": "계좌이동", "category": null, "amount": 50000, "detail": null, "method": "내 지갑", "account": "국민", "cardAccount": null, "memo": null}, {"month": 5, "day": 6, "weekday": "수", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 8, "weekday": "금", "type": "지출", "category": "주유", "amount": 9350, "detail": "에버온", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 9, "weekday": "토", "type": "지출", "category": "커피", "amount": 1600, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 9, "weekday": "토", "type": "지출", "category": "식비", "amount": 8500, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 9, "weekday": "토", "type": "지출", "category": "기타", "amount": 6200, "detail": "쿠팡", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 10, "weekday": "일", "type": "지출", "category": "간식", "amount": 4800, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 5, "day": 10, "weekday": "일", "type": "지출", "category": "차량유지비", "amount": 12000, "detail": "세차", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 10, "weekday": "일", "type": "지출", "category": "외식", "amount": 75000, "detail": "홍두깨칼국수", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 11, "weekday": "월", "type": "지출", "category": "통신비", "amount": 3640, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 11, "weekday": "월", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 11, "weekday": "월", "type": "지출", "category": "구독료", "amount": 32496, "detail": "클로드 ($22)", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 12, "weekday": "화", "type": "지출", "category": "차량유지비", "amount": 20000, "detail": "자동차 붓펜", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 12, "weekday": "화", "type": "지출", "category": "휴식", "amount": 5500, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 13, "weekday": "수", "type": "계좌이동", "category": null, "amount": 578327, "detail": null, "method": "주식", "account": "국민", "cardAccount": null, "memo": null}, {"month": 5, "day": 13, "weekday": "수", "type": "지출", "category": "의료/건강", "amount": 204100, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 13, "weekday": "수", "type": "수입", "category": "포인트", "amount": 145683, "detail": "삼성카드포인트", "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 5, "day": 16, "weekday": "토", "type": "수입", "category": "이자수익", "amount": 2, "detail": null, "method": "계좌입금", "account": "우리", "cardAccount": null, "memo": null}, {"month": 5, "day": 16, "weekday": "토", "type": "지출", "category": "커피", "amount": 1800, "detail": "커피", "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 5, "day": 16, "weekday": "토", "type": "수입", "category": "더치페이", "amount": 50000, "detail": "엄마 차 주유", "method": "현금", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 5, "day": 17, "weekday": "일", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 19, "weekday": "화", "type": "지출", "category": "커피", "amount": 100, "detail": "커피쿠폰구매", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 20, "weekday": "수", "type": "지출", "category": "휴식", "amount": 9500, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 5, "day": 20, "weekday": "수", "type": "수입", "category": "포인트", "amount": 51990, "detail": "자동차 캐시백", "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 5, "day": 20, "weekday": "수", "type": "지출", "category": "주유", "amount": 38276, "detail": "4월 차량 충전비", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 20, "weekday": "수", "type": "지출", "category": "보험", "amount": 44200, "detail": null, "method": "타인 계좌이체", "account": "새마을", "cardAccount": null, "memo": null}, {"month": 5, "day": 20, "weekday": "수", "type": "계좌이동", "category": null, "amount": 45000, "detail": null, "method": "국민", "account": "새마을", "cardAccount": null, "memo": null}, {"month": 5, "day": 21, "weekday": "목", "type": "지출", "category": "간식", "amount": 22000, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 5, "day": 21, "weekday": "목", "type": "지출", "category": "휴식", "amount": 1000, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 22, "weekday": "금", "type": "지출", "category": "운동", "amount": 237600, "detail": "필라테스", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 22, "weekday": "금", "type": "수입", "category": "더치페이", "amount": 9000, "detail": "윤선은 넷플", "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 5, "day": 22, "weekday": "금", "type": "지출", "category": "생필품", "amount": 11800, "detail": "탈취제", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 22, "weekday": "금", "type": "수입", "category": "더치페이", "amount": 12000, "detail": "탈취제 이나현", "method": "계좌입금", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 5, "day": 22, "weekday": "금", "type": "수입", "category": "더치페이", "amount": 12000, "detail": "탈취제 강선주", "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 5, "day": 22, "weekday": "금", "type": "수입", "category": "더치페이", "amount": 12000, "detail": "탈취제 송보경", "method": "계좌입금", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 5, "day": 22, "weekday": "금", "type": "수입", "category": "더치페이", "amount": 12000, "detail": "탈취제 최규성", "method": "현금", "account": "내 지갑", "cardAccount": null, "memo": null}, {"month": 5, "day": 22, "weekday": "금", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 23, "weekday": "토", "type": "계좌이동", "category": null, "amount": 80000, "detail": null, "method": "국민", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 5, "day": 23, "weekday": "토", "type": "지출", "category": "미용", "amount": 55000, "detail": "바비브라운 틴트 2개", "method": "타인 계좌이체", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 5, "day": 23, "weekday": "토", "type": "지출", "category": "커피", "amount": 1600, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 5, "day": 23, "weekday": "토", "type": "지출", "category": "차량유지비", "amount": 18500, "detail": "위글위글 차량번호판", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 23, "weekday": "토", "type": "지출", "category": "커피", "amount": 2500, "detail": "도서관 커피", "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 5, "day": 23, "weekday": "토", "type": "지출", "category": "교육", "amount": 3000, "detail": "스카", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 24, "weekday": "일", "type": "지출", "category": "간식", "amount": 8300, "detail": "떡", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 24, "weekday": "일", "type": "지출", "category": "커피", "amount": 2600, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 5, "day": 24, "weekday": "일", "type": "지출", "category": "교통비", "amount": 1100, "detail": "주차료", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 24, "weekday": "일", "type": "지출", "category": "교육", "amount": 3000, "detail": "스카", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 25, "weekday": "월", "type": "지출", "category": "커피", "amount": 2000, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 25, "weekday": "월", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 25, "weekday": "월", "type": "지출", "category": "식비", "amount": 7100, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 25, "weekday": "월", "type": "지출", "category": "커피", "amount": 5760, "detail": "파스쿠치", "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 5, "day": 26, "weekday": "화", "type": "지출", "category": "간식", "amount": 5900, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 27, "weekday": "수", "type": "지출", "category": "구독료", "amount": 9000, "detail": "넷플", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 27, "weekday": "수", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 27, "weekday": "수", "type": "지출", "category": "기타", "amount": 73580, "detail": "쿠팡", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 28, "weekday": "목", "type": "지출", "category": "생필품", "amount": 11120, "detail": "팬티라이너", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 28, "weekday": "목", "type": "지출", "category": "기타", "amount": 0, "detail": "대리비 (40,000)", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": "개인경비 처리 예정"}, {"month": 5, "day": 29, "weekday": "금", "type": "지출", "category": "구독료", "amount": 9900, "detail": "테슬라 네비", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 29, "weekday": "금", "type": "수입", "category": "잔액조정", "amount": 50000, "detail": "개인경비 교통비", "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 5, "day": 29, "weekday": "금", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 29, "weekday": "금", "type": "지출", "category": "차량유지비", "amount": 12000, "detail": "세차", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 30, "weekday": "토", "type": "지출", "category": "외식", "amount": 10000, "detail": "뷰민라", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 30, "weekday": "토", "type": "지출", "category": "외식", "amount": 20000, "detail": "뷰민라", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 30, "weekday": "토", "type": "지출", "category": "교통비", "amount": 7500, "detail": "주차료", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 31, "weekday": "일", "type": "지출", "category": "교통비", "amount": 57860, "detail": "하이패스", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 31, "weekday": "일", "type": "지출", "category": "생필품", "amount": 11790, "detail": "올리브영", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 31, "weekday": "일", "type": "지출", "category": "생필품", "amount": 1000, "detail": "다이소", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 5, "day": 31, "weekday": "일", "type": "지출", "category": "간식", "amount": 2200, "detail": "?", "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 5, "day": "6", "weekday": "수", "type": "수입", "category": "배당금", "amount": 24800, "detail": "TIGER 미국S&P500", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 5, "day": "6", "weekday": "수", "type": "수입", "category": "배당금", "amount": 2350, "detail": "TIGER 미국나스닥100", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 5, "day": "4", "weekday": "월", "type": "수입", "category": "배당금", "amount": 10150, "detail": "SOL CD금리&머니마켓액티브", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 5, "day": "6", "weekday": "수", "type": "수입", "category": "배당금", "amount": 6200, "detail": "TIGER 미국S&P500", "method": "계좌입금", "account": "개인연금", "cardAccount": null, "memo": null}, {"month": 5, "day": "6", "weekday": "수", "type": "수입", "category": "배당금", "amount": 7050, "detail": "TIGER 미국나스닥100", "method": "계좌입금", "account": "개인연금", "cardAccount": null, "memo": null}, {"month": 5, "day": "6", "weekday": "수", "type": "수입", "category": "배당금", "amount": 15900, "detail": "HANARO 원자력iSelect", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 5, "day": "6", "weekday": "수", "type": "수입", "category": "배당금", "amount": 26996, "detail": "KODEX 미국나스닥100", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 5, "day": "6", "weekday": "수", "type": "수입", "category": "배당금", "amount": 10836, "detail": "PLUS 고배당주", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 5, "day": "6", "weekday": "수", "type": "수입", "category": "배당금", "amount": 5720, "detail": "TIGER 미국필라델피아AI반도체나스닥", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 5, "day": "6", "weekday": "수", "type": "수입", "category": "배당금", "amount": 13000, "detail": "TIGER 조선TOP10", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 5, "day": "6", "weekday": "수", "type": "수입", "category": "배당금", "amount": 13800, "detail": "TIGER 미국배당다우존스타겟커버드콜2호", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 5, "day": "6", "weekday": "수", "type": "수입", "category": "배당금", "amount": 6000, "detail": "PLUS K방산", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 5, "day": "9", "weekday": "토", "type": "수입", "category": "배당금", "amount": 8280, "detail": "TIGER 미국테크TOP10타겟커버드콜", "method": "계좌입금", "account": "개인연금", "cardAccount": null, "memo": null}, {"month": 5, "day": "6", "weekday": "수", "type": "수입", "category": "배당금", "amount": 3650, "detail": "TIGER 미국나스닥100채권혼합50", "method": "계좌입금", "account": "IRP", "cardAccount": null, "memo": null}, {"month": 5, "day": "6", "weekday": "수", "type": "수입", "category": "배당금", "amount": 2500, "detail": "ACE 미국30년국채액티브(H)", "method": "계좌입금", "account": "IRP", "cardAccount": null, "memo": null}, {"month": 5, "day": "6", "weekday": "수", "type": "수입", "category": "배당금", "amount": 3300, "detail": "TIGER 미국배당다우존스", "method": "계좌입금", "account": "IRP", "cardAccount": null, "memo": null}, {"month": 5, "day": "6", "weekday": "수", "type": "수입", "category": "배당금", "amount": 6882, "detail": "TIGER 미국S&P500", "method": "계좌입금", "account": "IRP", "cardAccount": null, "memo": null}, {"month": 5, "day": "6", "weekday": "수", "type": "수입", "category": "배당금", "amount": 5405, "detail": "TIGER 미국나스닥100", "method": "계좌입금", "account": "IRP", "cardAccount": null, "memo": null}, {"month": 5, "day": "8", "weekday": "금", "type": "수입", "category": "배당금", "amount": 2310, "detail": "SOL 미국배당미국채혼합50", "method": "계좌입금", "account": "IRP", "cardAccount": null, "memo": null}, {"month": 5, "day": 31, "weekday": "일", "type": "수입", "category": "이자수익", "amount": 78, "detail": null, "method": "계좌입금", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 5, "day": "", "weekday": null, "type": null, "category": null, "amount": 0, "detail": null, "method": null, "account": null, "cardAccount": null, "memo": null}, {"month": 6, "day": 12, "weekday": "금", "type": "지출", "category": "차량유지비", "amount": 833300, "detail": "테슬라계약금 (6/6)", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 28, "weekday": "일", "type": "지출", "category": "차량유지비", "amount": 149600, "detail": "차량 보험료 (4/5) 748,380", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 29, "weekday": "월", "type": "지출", "category": "차량유지비", "amount": 433500, "detail": "테슬라  EWI (3/6)", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 29, "weekday": "월", "type": "지출", "category": "차량유지비", "amount": 36800, "detail": "테슬라 프로젝션 (3/3) 110,000", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 1, "weekday": "월", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 1, "weekday": "월", "type": "계좌이동", "category": null, "amount": 64707, "detail": null, "method": "카카오페이", "account": "국민", "cardAccount": null, "memo": null}, {"month": 6, "day": 1, "weekday": "월", "type": "수입", "category": "기타", "amount": 100000, "detail": "언니한테 빌림", "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 6, "day": 1, "weekday": "월", "type": "지출", "category": "보험", "amount": 200976, "detail": "5월 보험료", "method": "타인 계좌이체", "account": "국민", "cardAccount": null, "memo": null}, {"month": 6, "day": 2, "weekday": "화", "type": "지출", "category": "휴식", "amount": 500, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 2, "weekday": "화", "type": "지출", "category": "문화생활", "amount": 10000, "detail": "코노", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 2, "weekday": "화", "type": "지출", "category": "외식", "amount": 40200, "detail": "성규, 봉짱", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 3, "weekday": "수", "type": "지출", "category": "교육", "amount": 5500, "detail": "스카", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 4, "weekday": "목", "type": "지출", "category": "간식", "amount": 23460, "detail": "메고지고", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 4, "weekday": "목", "type": "지출", "category": "휴식", "amount": 5000, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 6, "day": 4, "weekday": "목", "type": "지출", "category": "의류", "amount": 139050, "detail": "메종가디건", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 5, "weekday": "금", "type": "수입", "category": "이자수익", "amount": 62, "detail": null, "method": "계좌입금", "account": "비상금", "cardAccount": null, "memo": null}, {"month": 6, "day": 5, "weekday": "금", "type": "수입", "category": "급여", "amount": 3759180, "detail": null, "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 6, "day": 5, "weekday": "금", "type": "지출", "category": "식비", "amount": 3300, "detail": "김밥", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 5, "weekday": "금", "type": "계좌이동", "category": null, "amount": 700000, "detail": "청도계", "method": "국민", "account": "예적금", "cardAccount": null, "memo": null}, {"month": 6, "day": 5, "weekday": "금", "type": "계좌이동", "category": null, "amount": 1000000, "detail": null, "method": "국민", "account": "비상금", "cardAccount": null, "memo": null}, {"month": 6, "day": 5, "weekday": "금", "type": "지출", "category": "생활비", "amount": 200000, "detail": null, "method": "타인 계좌이체", "account": "국민", "cardAccount": null, "memo": null}, {"month": 6, "day": 5, "weekday": "금", "type": "지출", "category": "식비", "amount": 15000, "detail": "엽떡", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 6, "weekday": "토", "type": "지출", "category": "커피", "amount": 1800, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 6, "weekday": "토", "type": "지출", "category": "커피", "amount": 1000, "detail": "메가", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 6, "weekday": "토", "type": "지출", "category": "간식", "amount": 9500, "detail": "아이스크림", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 6, "weekday": "토", "type": "지출", "category": "생필품", "amount": 18000, "detail": "다이소", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 6, "weekday": "토", "type": "지출", "category": "휴식", "amount": 5000, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 7, "weekday": "일", "type": "지출", "category": "커피", "amount": 1800, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 7, "weekday": "일", "type": "지출", "category": "교통비", "amount": 200, "detail": "주차료", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 8, "weekday": "월", "type": "지출", "category": "간식", "amount": 2000, "detail": "떡", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 8, "weekday": "월", "type": "지출", "category": "교육", "amount": 3000, "detail": "스카", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 8, "weekday": "월", "type": "수입", "category": "더치페이", "amount": 9000, "detail": "이가을_넷플", "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 6, "day": 9, "weekday": "화", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 9, "weekday": "화", "type": "지출", "category": "간식", "amount": 2200, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 9, "weekday": "화", "type": "지출", "category": "간식", "amount": 8000, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 9, "weekday": "화", "type": "지출", "category": "간식", "amount": 4600, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 11, "weekday": "목", "type": "지출", "category": "통신비", "amount": 3650, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 11, "weekday": "목", "type": "지출", "category": "식비", "amount": 5300, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 11, "weekday": "목", "type": "지출", "category": "휴식", "amount": 9500, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 12, "weekday": "금", "type": "수입", "category": "기타", "amount": 35080, "detail": "종소세 환급", "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 6, "day": 12, "weekday": "금", "type": "지출", "category": "간식", "amount": 13800, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 12, "weekday": "금", "type": "지출", "category": "간식", "amount": 6400, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 13, "weekday": "토", "type": "수입", "category": "이자수익", "amount": 355, "detail": null, "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 6, "day": 13, "weekday": "토", "type": "지출", "category": "차량유지비", "amount": 11000, "detail": "세차", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 13, "weekday": "토", "type": "지출", "category": "커피", "amount": 1900, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 13, "weekday": "토", "type": "지출", "category": "교통비", "amount": 4000, "detail": "주차료", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 13, "weekday": "토", "type": "지출", "category": "경조사", "amount": 100000, "detail": "셋째삼촌 칠순", "method": "타인 계좌이체", "account": "국민", "cardAccount": null, "memo": null}, {"month": 6, "day": 14, "weekday": "일", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 14, "weekday": "일", "type": "계좌이동", "category": null, "amount": 2, "detail": null, "method": "우리", "account": "국민", "cardAccount": null, "memo": null}, {"month": 6, "day": 14, "weekday": "일", "type": "계좌이동", "category": null, "amount": 1031080, "detail": null, "method": "비상금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 6, "day": 15, "weekday": "월", "type": "지출", "category": "간식", "amount": 1800, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 15, "weekday": "월", "type": "지출", "category": "식비", "amount": 3300, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 16, "weekday": "화", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 17, "weekday": "수", "type": "지출", "category": "커피", "amount": 6400, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 18, "weekday": "목", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 18, "weekday": "목", "type": "지출", "category": "식비", "amount": 6900, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 19, "weekday": "금", "type": "지출", "category": "생필품", "amount": 10980, "detail": "키스킨", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 20, "weekday": "토", "type": "지출", "category": "생필품", "amount": 33720, "detail": "스탠리 텀블러", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 20, "weekday": "토", "type": "수입", "category": "이자수익", "amount": 135, "detail": null, "method": "계좌입금", "account": "우리", "cardAccount": null, "memo": null}, {"month": 6, "day": 21, "weekday": "일", "type": "지출", "category": "커피", "amount": 1600, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 6, "day": 21, "weekday": "일", "type": "지출", "category": "교통비", "amount": 2500, "detail": "주차료", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 21, "weekday": "일", "type": "지출", "category": "의류", "amount": 52865.666666666664, "detail": "옷 (1/3) 158,597", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 22, "weekday": "월", "type": "수입", "category": "포인트", "amount": 51990, "detail": "테슬라 캐시백", "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 6, "day": 22, "weekday": "월", "type": "지출", "category": "휴식", "amount": 9500, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 23, "weekday": "화", "type": "계좌이동", "category": null, "amount": 45000, "detail": null, "method": "국민", "account": "새마을", "cardAccount": null, "memo": null}, {"month": 6, "day": 24, "weekday": "수", "type": "지출", "category": "교통비", "amount": 38000, "detail": "대리비", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": "개인경비 정산 예정"}, {"month": 6, "day": 24, "weekday": "수", "type": "수입", "category": "기타", "amount": 3510, "detail": "종소세 환급", "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 6, "day": 24, "weekday": "수", "type": "지출", "category": "휴식", "amount": 4500, "detail": null, "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 25, "weekday": "목", "type": "지출", "category": "보험", "amount": 44200, "detail": null, "method": "타인 계좌이체", "account": "새마을", "cardAccount": null, "memo": null}, {"month": 6, "day": 25, "weekday": "목", "type": "수입", "category": "기타", "amount": 6420, "detail": "모닝 자동차세 환급", "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 6, "day": 25, "weekday": "목", "type": "수입", "category": "더치페이", "amount": 9000, "detail": "윤선은 넷플", "method": "계좌입금", "account": "국민", "cardAccount": null, "memo": null}, {"month": 6, "day": 26, "weekday": "금", "type": "지출", "category": "경조사", "amount": 40000, "detail": "언니 생선", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 26, "weekday": "금", "type": "지출", "category": "간식", "amount": 6100, "detail": null, "method": "체크카드", "account": "의왕", "cardAccount": "의왕", "memo": null}, {"month": 6, "day": 27, "weekday": "토", "type": "지출", "category": "구독료", "amount": 9000, "detail": "넷플", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": "1", "weekday": "월", "type": "수입", "category": "배당금", "amount": 8750, "detail": "SOL CD금리&머니마켓액티브", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 6, "day": "1", "weekday": "월", "type": "수입", "category": "배당금", "amount": 10836, "detail": "PLUS 고배당주", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 6, "day": "1", "weekday": "월", "type": "수입", "category": "배당금", "amount": 14400, "detail": "TIGER 미국배당다우존스타겟커버드콜2호", "method": "계좌입금", "account": "ISA", "cardAccount": null, "memo": null}, {"month": 6, "day": "2", "weekday": "화", "type": "수입", "category": "배당금", "amount": 3600, "detail": "TIGER 미국배당다우존스", "method": "계좌입금", "account": "IRP", "cardAccount": null, "memo": null}, {"month": 6, "day": "2", "weekday": "화", "type": "수입", "category": "배당금", "amount": 2500, "detail": "ACE 미국30년국채액티브(H)", "method": "계좌입금", "account": "IRP", "cardAccount": null, "memo": null}, {"month": 6, "day": "2", "weekday": "화", "type": "수입", "category": "배당금", "amount": 3575, "detail": "ACE 미국30년국채액티브(H)", "method": "계좌입금", "account": "퇴직연금", "cardAccount": null, "memo": null}, {"month": 6, "day": 17, "weekday": "수", "type": "수입", "category": "배당금", "amount": 7980, "detail": "TIGER 미국테크TOP10타겟커버드콜", "method": "계좌입금", "account": "개인연금", "cardAccount": null, "memo": null}, {"month": 6, "day": 16, "weekday": "화", "type": "수입", "category": "배당금", "amount": 3570, "detail": "SOL 미국배당미국채혼합50", "method": "계좌입금", "account": "IRP", "cardAccount": null, "memo": null}, {"month": 6, "day": 27, "weekday": "토", "type": "수입", "category": "이자수익", "amount": 7, "detail": null, "method": "계좌입금", "account": "카카오페이", "cardAccount": null, "memo": null}, {"month": 6, "day": 31, "weekday": "수", "type": "지출", "category": "교통비", "amount": 79310, "detail": "하이패스", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 6, "day": 31, "weekday": "수", "type": "지출", "category": "생활비", "amount": 51800, "detail": "엄마하이패스", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 7, "day": 29, "weekday": "수", "type": "지출", "category": "차량유지비", "amount": 433500, "detail": "테슬라  EWI (4/6)", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 7, "day": 28, "weekday": "화", "type": "지출", "category": "차량유지비", "amount": 149600, "detail": "차량 보험료 (5/5) 748,380", "method": "신용카드", "account": "롯데", "cardAccount": "국민", "memo": null}, {"month": 7, "day": 21, "weekday": "화", "type": "지출", "category": "의류", "amount": 52865.666666666664, "detail": "옷 (2/3)", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 7, "day": 1, "weekday": "수", "type": "지출", "category": "차량유지비", "amount": 96680, "detail": "자동차세", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 8, "day": 29, "weekday": "토", "type": "지출", "category": "차량유지비", "amount": 433500, "detail": "테슬라  EWI (5/6)", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 8, "day": 21, "weekday": "금", "type": "지출", "category": "의류", "amount": 52865.666666666664, "detail": "옷 (3/3)", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}, {"month": 9, "day": 29, "weekday": "화", "type": "지출", "category": "차량유지비", "amount": 433500, "detail": "테슬라  EWI (6/6)", "method": "신용카드", "account": "삼성", "cardAccount": "국민", "memo": null}], "incomeCats": [{"group": "근로소득", "name": "급여"}, {"group": "근로소득", "name": "상여"}, {"group": "금융소득", "name": "배당금"}, {"group": "금융소득", "name": "이자수익"}, {"group": "양도소득", "name": "매도수익"}, {"group": "기타소득", "name": "포인트"}, {"group": "기타소득", "name": "당근"}, {"group": "기타소득", "name": "기타"}, {"group": "소득 외", "name": "더치페이"}, {"group": "소득 외", "name": "잔액조정"}], "expenseCats": [{"group": "변동", "major": "식비", "name": "식비"}, {"group": "변동", "major": "식비", "name": "간식"}, {"group": "변동", "major": "식비", "name": "커피"}, {"group": "변동", "major": "식비", "name": "외식"}, {"group": "변동", "major": "변동생활비", "name": "생필품"}, {"group": "변동", "major": "변동생활비", "name": "휴식"}, {"group": "변동", "major": "꾸밈비", "name": "의류"}, {"group": "변동", "major": "꾸밈비", "name": "미용"}, {"group": "변동", "major": "의료/건강", "name": "의료/건강"}, {"group": "변동", "major": "의료/건강", "name": "운동"}, {"group": "변동", "major": "교육", "name": "교육"}, {"group": "변동", "major": "교통비", "name": "교통비"}, {"group": "변동", "major": "교통비", "name": "주유"}, {"group": "변동", "major": "교통비", "name": "차량유지비"}, {"group": "변동", "major": "변동생활비", "name": "베프"}, {"group": "변동", "major": "문화생활", "name": "문화생활"}, {"group": "변동", "major": "문화생활", "name": "여행"}, {"group": "변동", "major": "경조사", "name": "경조사"}, {"group": "변동", "major": "기타", "name": "기타"}, {"group": "고정", "major": "고정생활비", "name": "생활비"}, {"group": "고정", "major": "고정생활비", "name": "통신비"}, {"group": "고정", "major": "고정생활비", "name": "구독료"}, {"group": "고정", "major": "보험", "name": "보험"}, {"group": "고정", "major": "모임", "name": "계"}], "accounts": [{"name": "국민", "kind": "현 금", "bank": "국민은행", "card": "알뜰교통", "initBalance": 48697, "balance": 72092, "value": 72092}, {"name": "토스", "kind": "현 금", "bank": "토스", "card": "토스", "initBalance": 284003, "balance": 1, "value": 1}, {"name": "새마을", "kind": "현 금", "bank": "새마을금고", "card": "새마을", "initBalance": 1, "balance": 1600, "value": 1600}, {"name": "카카오", "kind": "현 금", "bank": "카카오뱅크", "card": "카카오", "initBalance": 884906, "balance": 2, "value": 182}, {"name": "신한", "kind": "현 금", "bank": "신한은행", "card": "신한체크", "initBalance": 45586, "balance": 45586, "value": 45586}, {"name": "수원", "kind": "현 금", "bank": "지역화폐", "card": "수원", "initBalance": 573850, "balance": 336650, "value": 336650}, {"name": "의왕", "kind": "현 금", "bank": "지역화폐", "card": "의왕", "initBalance": 213484, "balance": 17554, "value": 17554}, {"name": "비상금", "kind": "현 금", "bank": "우리투자증권", "card": "", "initBalance": 9268432, "balance": 0, "value": 0}, {"name": "파킹", "kind": "현 금", "bank": "토스", "card": "", "initBalance": 0, "balance": 0, "value": 0}, {"name": "CMA", "kind": "현 금", "bank": "미래에셋증권", "card": "", "initBalance": 0, "balance": 0, "value": 0}, {"name": "예적금", "kind": "예적금", "bank": "예적금", "card": "", "initBalance": 55880000, "balance": 20520000, "value": 20520000}, {"name": "ISA", "kind": "투 자", "bank": "국민은행", "card": "", "initBalance": 41048472, "balance": 41425794, "value": 53663267}, {"name": "주식", "kind": "투 자", "bank": "키움증권", "card": "", "initBalance": 10423000, "balance": 9418598, "value": 10386612}, {"name": "개인연금", "kind": "투 자", "bank": "미래에셋증권", "card": "", "initBalance": 6441041, "balance": 8017921, "value": 8637211}, {"name": "IRP", "kind": "투 자", "bank": "미래에셋증권", "card": "", "initBalance": 8728562, "balance": 8805901, "value": 10807950}, {"name": "청약", "kind": "예적금", "bank": "국민은행", "card": "", "initBalance": 5000000, "balance": 5000000, "value": 5000000}, {"name": "카카오페이", "kind": "현 금", "bank": "카카오뱅크", "card": "카카오페이", "initBalance": 309489, "balance": 7, "value": 7}, {"name": "우리", "kind": "현 금", "bank": "우리은행", "card": "", "initBalance": 2000000, "balance": 135, "value": 135}, {"name": "내 지갑", "kind": "", "bank": "", "card": "", "initBalance": 79052, "balance": 79052, "value": 79052}], "cards": [{"name": "삼성", "company": "삼성카드", "account": "국민", "payday": 13}, {"name": "롯데", "company": "롯데카드", "account": "국민", "payday": 14}, {"name": "신한카드", "company": "신한카드", "account": "신한", "payday": 14}]}</script>
+<script>
+const SEED = JSON.parse(document.getElementById('seed').textContent);
+SEED.transactions.forEach((t,i)=>{ t.id='s'+i; t.year=SEED.year; });
+
+// ---------- state (localStorage) ----------
+const LS_KEY = 'ledgerApp_v3';
+// ===== Google Drive 동기화 설정 =====
+// ↓↓↓ 본인 Google OAuth 클라이언트 ID를 이 따옴표 안에 붙여넣으세요 (비워두면 기존처럼 이 기기에만 저장) ↓↓↓
+const GOOGLE_CLIENT_ID = '';   // 예: '1234567890-abcde....apps.googleusercontent.com'
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+const DRIVE_FILENAME = 'asset-dashboard-data.json';
+const DRIVE_FLAG = 'ledgerApp_driveConnected';
+// 카테고리 설정에서 개별 조정 가능한 지출 구분(필수/선택/비정기)의 초기 기본값
+const DEFAULT_TIER = {
+  '식비':'필수','생활비':'필수','통신비':'필수','보험':'필수','교통비':'필수','의료/건강':'필수',
+  '교육':'필수','주유':'필수','차량유지비':'필수','생필품':'필수',
+  '간식':'선택','커피':'선택','외식':'선택','문화생활':'선택','의류':'선택','미용':'선택',
+  '구독료':'선택','운동':'선택','계':'선택','베프':'선택','휴식':'선택',
+  '경조사':'비정기','여행':'비정기','기타':'비정기'
+};
+function defaultState(){
+  return {
+    curYear: SEED.year,
+    baseDate: SEED.lastRecord,
+    accounts: SEED.accounts.map(a=>({name:a.name, kind:a.kind||'현 금', bank:a.bank||'', init:+a.initBalance||0, balance:(a.value??a.balance)??0, hasCheckCard:!!a.card})),
+    incomeCats: SEED.incomeCats.map(c=>({group:c.group, name:c.name})),
+    expenseCats: SEED.expenseCats.map(c=>({group:c.group, major:c.major||'', name:c.name, tier:c.tier||DEFAULT_TIER[c.name]||'선택'})),
+    cards: SEED.cards.map(c=>({name:c.name, company:c.company||'', account:c.account||'', payday:+c.payday||1})),
+    added:[], edited:{}, deleted:[], cardManual:{}
+  };
+}
+let S;
+try { S = JSON.parse(localStorage.getItem(LS_KEY)); } catch(e){ S = null; }
+if(!S){
+  S = defaultState();
+  // v2 마이그레이션
+  try{
+    const v2 = JSON.parse(localStorage.getItem('ledgerApp_v2'));
+    if(v2){
+      S.curYear = v2.curYear||S.curYear; S.baseDate = v2.baseDate||S.baseDate;
+      if(Array.isArray(v2.accounts)) S.accounts = v2.accounts.map(a=>({...a, hasCheckCard: a.hasCheckCard!==undefined?a.hasCheckCard:(a.kind==='현 금')}));
+      if(Array.isArray(v2.incomeCats)) S.incomeCats = v2.incomeCats;
+      if(Array.isArray(v2.expenseCats)) S.expenseCats = v2.expenseCats;
+      S.added = v2.added||[]; S.edited = v2.edited||{}; S.deleted = v2.deleted||[];
+    } else {
+      // v1 마이그레이션 (기존 가계부_2026.html에서 추가한 내역 유지)
+      const old = JSON.parse(localStorage.getItem('ledger2026_user'));
+      if(old){
+        S.added = (old.added||[]).map(t=>({...t, year:t.year||SEED.year}));
+        S.edited = old.edited||{}; S.deleted = old.deleted||[];
+      }
+    }
+  }catch(e){}
+}
+['accounts','incomeCats','expenseCats','cards','added','deleted'].forEach(k=>{ if(!Array.isArray(S[k])) S[k]=defaultState()[k]; });
+if(!S.edited) S.edited={};
+if(!S.cardManual) S.cardManual={};
+// 기존 저장 데이터(지출 구분 필드 도입 이전)에 대한 마이그레이션: 없으면 기본값으로 채움
+S.expenseCats.forEach(c=>{ if(!c.tier) c.tier = DEFAULT_TIER[c.name] || '선택'; });
+if(!S.curYear) S.curYear=SEED.year;
+if(!S.baseDate) S.baseDate=SEED.lastRecord;
+// Drive에서 불러온 상태 등에도 동일한 보정을 적용하기 위한 함수
+function normalizeState(){
+  ['accounts','incomeCats','expenseCats','cards','added','deleted'].forEach(k=>{ if(!Array.isArray(S[k])) S[k]=defaultState()[k]; });
+  if(!S.edited) S.edited={};
+  if(!S.cardManual) S.cardManual={};
+  S.expenseCats.forEach(c=>{ if(!c.tier) c.tier = DEFAULT_TIER[c.name] || '선택'; });
+  if(!S.curYear) S.curYear=SEED.year;
+  if(!S.baseDate) S.baseDate=SEED.lastRecord;
+}
+function save(){
+  S.updatedAt = Date.now();
+  localStorage.setItem(LS_KEY, JSON.stringify(S));
+  if(typeof drivePushSoon==='function') drivePushSoon();   // 연결돼 있으면 Drive에도 반영
+}
+
+// ---------- amount input formatting (thousands separators) ----------
+function numVal(el){ return Number(String(el.value||'').replace(/[^0-9]/g,''))||0; }
+function setAmt(el, v){ el.value = (v===null||v===undefined||v==='') ? '' : Number(v).toLocaleString('ko-KR'); }
+document.addEventListener('input', e=>{
+  if(e.target.classList && e.target.classList.contains('amt-input')){
+    const raw = e.target.value.replace(/[^0-9]/g,'');
+    e.target.value = raw ? Number(raw).toLocaleString('ko-KR') : '';
+  }
+});
+
+function realTx(){
+  const del = new Set(S.deleted);
+  const base = SEED.transactions.filter(t=>!del.has(t.id)).map(t=> S.edited[t.id] ? {...t, ...S.edited[t.id], _edited:true} : t);
+  return base.concat(S.added.map(t=>({...t, _edited:true})));
+}
+
+// ---------- credit card auto/manual withdrawal ----------
+function cardCycle(year, month){
+  let py=year, pm=month-1;
+  if(pm===0){ pm=12; py=year-1; }
+  return {py, pm};
+}
+function autoCardAmount(card, year, month){
+  const {py, pm} = cardCycle(year, month);
+  return realTx().filter(t=>t.type==='지출' && t.method==='신용카드' && t.account===card.name && (t.year||SEED.year)===py && t.month===pm)
+    .reduce((s,t)=>s+(+t.amount||0), 0);
+}
+function cardManualKey(card, year, month){ return `${card.name}|${year}|${month}`; }
+function appliedCardAmount(card, year, month){
+  const key = cardManualKey(card, year, month);
+  const manual = S.cardManual[key];
+  const auto = autoCardAmount(card, year, month);
+  return { amount: (manual!=null?manual:auto), auto, manual: (manual!=null?manual:null) };
+}
+function buildVirtualCardTx(card, year, month){
+  const { amount, auto, manual } = appliedCardAmount(card, year, month);
+  // 그 달 사용액이 0이고 수동으로 입력한 값도 전혀 없으면(=진짜 아무 일도 없으면)만 행을 숨김.
+  // 사용액이 있는데 수동으로 0을 입력한 경우는 사용자가 확인할 수 있도록 행을 계속 표시함.
+  if((!auto || auto<=0) && manual==null) return null;
+  if(amount<0) return null;
+  const d = new Date(year, month-1, card.payday);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const {pm} = cardCycle(year, month);
+  return {
+    id:`card_${card.name}_${year}_${month}`, year, month, day:card.payday, weekday:WD[d.getDay()],
+    type:'계좌이동', category:'카드값출금', amount,
+    detail:`${card.name} 카드값 출금 (${pm}월 사용분)`, method:'카드자동출금', account:card.account,
+    memo: manual!=null?'수동입력':'자동계산(사용액 합계)',
+    _cardVirtual:true, cardName:card.name, autoAmount:auto, manualSet: manual!=null,
+    status: d<=today?'완료':'예정'
+  };
+}
+function virtualCardTxsForYear(year){
+  const out=[];
+  S.cards.forEach(card=>{
+    for(let m=1;m<=12;m++){ const v=buildVirtualCardTx(card,year,m); if(v) out.push(v); }
+  });
+  return out;
+}
+function allTx(){
+  const real = realTx();
+  const years = new Set(real.map(t=>t.year||SEED.year));
+  years.add(S.curYear);
+  let virt=[];
+  years.forEach(y=> virt = virt.concat(virtualCardTxsForYear(y)));
+  return real.concat(virt);
+}
+function yearTx(){ return allTx().filter(t=>(t.year||SEED.year)===S.curYear); }
+
+// ---------- per-account ledger (모든 실거래 + 카드출금이 계좌 잔액에 반영) ----------
+function accountTx(name){
+  const rows = [];
+  realTx().forEach(t=>{
+    if(t.type==='수입' && t.account===name) rows.push({...t, effect:+(+t.amount||0), role:'입금'});
+    else if(t.type==='지출' && t.account===name && t.method!=='신용카드') rows.push({...t, effect:-(+t.amount||0), role: t.method==='현금'?'현금출금':'출금'});
+    else if(t.type==='계좌이동'){
+      if(t.method===name) rows.push({...t, effect:-(+t.amount||0), role:'이체(출)'});
+      if(t.account===name) rows.push({...t, effect:+(+t.amount||0), role:'이체(입)'});
+    }
+  });
+  const years = new Set(realTx().map(t=>t.year||SEED.year)); years.add(S.curYear);
+  years.forEach(y=>{
+    S.cards.filter(c=>c.account===name).forEach(card=>{
+      for(let m=1;m<=12;m++){ const v=buildVirtualCardTx(card,y,m); if(v) rows.push({...v, effect:-v.amount, role:'카드출금'}); }
+    });
+  });
+  rows.sort((a,b)=>(a.year-b.year)||(a.month-b.month)||((a.day||0)-(b.day||0)));
+  return rows;
+}
+function accountDelta(name){
+  const base = new Date(S.baseDate+'T00:00:00'); base.setHours(0,0,0,0);
+  const today = new Date(); today.setHours(0,0,0,0);
+  if(isNaN(base.getTime())) return 0;
+  return accountTx(name).reduce((s,t)=>{
+    const dt = new Date(t.year, t.month-1, t.day||1);
+    return (dt>base && dt<=today) ? s+t.effect : s;
+  },0);
+}
+function accountCardDelta(name){
+  const base = new Date(S.baseDate+'T00:00:00'); base.setHours(0,0,0,0);
+  const today = new Date(); today.setHours(0,0,0,0);
+  if(isNaN(base.getTime())) return 0;
+  return accountTx(name).filter(t=>t.role==='카드출금').reduce((s,t)=>{
+    const dt = new Date(t.year, t.month-1, t.day||1);
+    return (dt>base && dt<=today) ? s+t.effect : s;
+  },0);
+}
+function renderAcctLedger(){
+  if(!S.accounts.length){ acctLedgerSel.innerHTML=''; tblAcctLedger.innerHTML=''; acctLedgerNote.textContent=''; return; }
+  const names = S.accounts.map(a=>a.name);
+  const cur = names.includes(acctLedgerSel.value) ? acctLedgerSel.value : names[0];
+  acctLedgerSel.innerHTML = names.map(n=>`<option${n===cur?' selected':''}>${esc(n)}</option>`).join('');
+  const snapAcc = S.accounts.find(a=>a.name===cur);
+  const baseVal = snapAcc ? ((snapAcc.balance===null||snapAcc.balance===undefined||snapAcc.balance==='')?(+snapAcc.init||0):+snapAcc.balance) : 0;
+  const base = new Date(S.baseDate+'T00:00:00'); base.setHours(0,0,0,0);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const rows = accountTx(cur).filter(t=>{ const dt=new Date(t.year,t.month-1,t.day||1); return dt>base; });
+  let running = baseVal;
+  let h = `<thead><tr><th>날짜</th><th>구분</th><th>내용</th><th class="num">금액</th><th class="num">반영 후 잔액</th></tr></thead><tbody>`;
+  h += `<tr style="background:#f9fafb"><td colspan="4">기준일(${S.baseDate}) 스냅샷 잔액</td><td class="num ${baseVal>=0?'pos':'neg'}">${fmt(baseVal)}</td></tr>`;
+  rows.forEach(t=>{
+    const dt = new Date(t.year, t.month-1, t.day||1);
+    const counted = dt<=today;
+    if(counted) running += t.effect;
+    h += `<tr${counted?'':' style="opacity:.5"'}>
+      <td>${t.year}.${t.month}.${t.day??''}</td>
+      <td>${esc(t.role)}${t._cardVirtual?` <span class="tag ${t.status}">${t.status}</span>`:''}</td>
+      <td style="white-space:normal">${esc(t.detail||t.category||'')}</td>
+      <td class="num ${t.effect>=0?'pos':'neg'}">${t.effect>=0?'+':''}${fmt(t.effect)}</td>
+      <td class="num ${counted?(running>=0?'pos':'neg'):''}" style="font-weight:600">${counted?fmt(running):'예정'}</td>
+    </tr>`;
+  });
+  document.getElementById('tblAcctLedger').innerHTML = h+'</tbody>';
+  acctLedgerNote.textContent = `반영 완료 기준 현재 잔액: ${won(running)} · 흐리게 표시된 행은 기준일 이후 예정(미완료) 항목입니다. 수입/체크카드·현금 지출/계좌이동/카드값출금이 모두 잔액에 반영됩니다.`;
+}
+acctLedgerSel && (acctLedgerSel.onchange = renderAcctLedger);
+const WD = ['일','월','화','수','목','금','토'];
+const fmt = n => (n==null?0:Math.round(n)).toLocaleString('ko-KR');
+const won = n => fmt(n) + '원';
+const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const exclInc = () => new Set(S.incomeCats.filter(c=>c.group==='소득 외').map(c=>c.name));
+let EXCL = exclInc();
+const isInc = t => t.type==='수입' && !EXCL.has(t.category);
+
+// ---------- header: tabs / year / baseDate ----------
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+  ['dash','tx','asset','cat'].forEach(t=>document.getElementById('tab-'+t).style.display = t===b.dataset.tab?'':'none');
+  // 탭을 열 때마다 최신 상태로 다시 그려서, 다른 탭에서 바꾼 내용(카드 수동입력 등)이 항상 반영되도록 함
+  if(b.dataset.tab==='dash') renderDash();
+  else if(b.dataset.tab==='tx') renderTx();
+  else if(b.dataset.tab==='asset') renderAsset();
+  else if(b.dataset.tab==='cat') renderCats();
+});
+function renderYearSel(){
+  const ys = new Set(allTx().map(t=>t.year||SEED.year));
+  ys.add(S.curYear); ys.add(new Date().getFullYear());
+  const list = [...ys].sort();
+  yearSel.innerHTML = list.map(y=>`<option value="${y}"${y===S.curYear?' selected':''}>${y}년</option>`).join('')
+    + '<option value="__new">＋ 년도 추가…</option>';
+}
+yearSel.onchange = ()=>{
+  if(yearSel.value==='__new'){
+    const y = parseInt(prompt('추가할 년도를 입력하세요 (예: 2027)'), 10);
+    if(y && y>1900 && y<3000) S.curYear = y;
+  } else S.curYear = +yearSel.value;
+  save(); renderAll();
+};
+// 기준일을 실제로 이동(과거→미래 또는 미래→과거)할 때, 그 사이에 실제로 일어난 거래 효과를
+// 계좌 잔액에 자동으로 흡수(또는 환원)시켜서, 기준일만 바뀌고 잔액 숫자는 그대로 남는 일이 없게 함.
+function accountEffectInRange(name, fromDateStr, toDateStr){
+  const from = new Date(fromDateStr+'T00:00:00'); from.setHours(0,0,0,0);
+  const to = new Date(toDateStr+'T00:00:00'); to.setHours(0,0,0,0);
+  const today = new Date(); today.setHours(0,0,0,0);
+  if(isNaN(from.getTime()) || isNaN(to.getTime())) return 0;
+  const upper = to<today ? to : today; // 아직 안 지난(예정) 거래는 흡수하지 않음
+  if(upper<=from) return 0;
+  return accountTx(name).reduce((s,t)=>{
+    const dt = new Date(t.year, t.month-1, t.day||1);
+    return (dt>from && dt<=upper) ? s+t.effect : s;
+  },0);
+}
+baseDate.onchange = ()=>{
+  const oldBase = S.baseDate, newBase = baseDate.value;
+  if(newBase && oldBase && newBase!==oldBase){
+    const forward = newBase > oldBase;
+    const lo = forward?oldBase:newBase, hi = forward?newBase:oldBase;
+    S.accounts.forEach(a=>{
+      const eff = accountEffectInRange(a.name, lo, hi);
+      if(!eff) return;
+      const cur = (a.balance===null||a.balance===undefined||a.balance==='') ? (+a.init||0) : +a.balance;
+      a.balance = cur + (forward?eff:-eff);
+    });
+  }
+  S.baseDate = newBase;
+  save(); renderAsset();
+};
+
+// ---------- dashboard ----------
+let chMonthly, chCat, chMethod, chAsset, chMoM, chCatMajor;
+// 월별 수입/지출 차트에서 제외할 항목 (빈 Set = 전체 표시). 새로 추가되는 항목은 기본 포함
+let MON_EXCL_INC = new Set();    // 수입 카테고리명
+let MON_EXCL_EXP = new Set();    // 지출 카테고리명
+let MON_EXCL_TIER = new Set();   // 지출구분(필수/선택/비정기)
+let MON_EXCL_MAJOR = new Set();  // 지출 대분류
+// 카테고리명(소분류) -> 대분류 매핑. 설정에 없으면 이름 그대로 자기 자신을 대분류로 취급
+function categoryMajor(name){
+  const c = S.expenseCats.find(x=>x.name===(name||'기타'));
+  return (c && c.major) ? c.major : (name||'기타');
+}
+// 카테고리명 -> 지출 구분(필수/선택/비정기). 카테고리 설정에 없으면 기본 매핑, 그것도 없으면 '선택'
+function categoryTier(name){
+  const c = S.expenseCats.find(x=>x.name===(name||'기타'));
+  return (c && c.tier) || DEFAULT_TIER[name] || '선택';
+}
+// 카테고리명 -> 수입구분(근로소득/금융소득 등). 설정에 없으면 '기타'
+function incomeGroup(name){
+  const c = S.incomeCats.find(x=>x.name===name);
+  return (c && c.group) || '기타';
+}
+function calcMonthly(){
+  const inc = Array(12).fill(0), exp = Array(12).fill(0);
+  const expTier = {'필수':Array(12).fill(0), '선택':Array(12).fill(0), '비정기':Array(12).fill(0)};
+  const incByGroup = {}; // 수입구분 -> 월별 배열
+  yearTx().forEach(t=>{
+    if(isInc(t)){
+      if(MON_EXCL_INC.has(t.category)) return;      // 필터에서 해제한 수입 카테고리는 제외
+      inc[t.month-1]+=+t.amount||0;
+      const g = incomeGroup(t.category);
+      if(!incByGroup[g]) incByGroup[g]=Array(12).fill(0);
+      incByGroup[g][t.month-1] += +t.amount||0;
+    }
+    else if(t.type==='지출'){
+      const cat = t.category||'기타';
+      const tier = categoryTier(t.category);
+      const maj = categoryMajor(t.category);
+      // 카테고리명·지출구분·대분류 필터를 모두 통과한 지출만 집계 (하나라도 해제되면 제외)
+      if(MON_EXCL_EXP.has(cat) || MON_EXCL_TIER.has(tier) || MON_EXCL_MAJOR.has(maj)) return;
+      exp[t.month-1]+=+t.amount||0;
+      (expTier[tier]||expTier['선택'])[t.month-1] += +t.amount||0;
+    }
+  });
+  return {inc, exp, expTier, incByGroup};
+}
+function renderDash(){
+  EXCL = exclInc();
+  tIncome.textContent = S.curYear+'년 수입'; tExpense.textContent = S.curYear+'년 지출';
+  const {inc, exp, expTier, incByGroup} = calcMonthly();
+  const ti = inc.reduce((a,b)=>a+b,0), te = exp.reduce((a,b)=>a+b,0);
+  const tx = yearTx();
+  kIncome.textContent = won(ti); kExpense.textContent = won(te);
+  kNet.textContent = won(ti-te); kNet.className = 'v ' + (ti>=te?'pos':'neg');
+  const recMonths = inc.map((v,i)=>v||exp[i]?i+1:null).filter(Boolean);
+  kIncomeD.textContent = `기록 ${recMonths.length}개월 · 소득 외(더치페이 등) 제외`;
+  kExpenseD.textContent = `기록 ${recMonths.length}개월`;
+  kCount.textContent = fmt(tx.length)+'건';
+  kCountD.textContent = `수입 ${tx.filter(t=>t.type==='수입').length} · 지출 ${tx.filter(t=>t.type==='지출').length} · 이동 ${tx.filter(t=>t.type==='계좌이동').length}`;
+  const labels = Array.from({length:12},(_,i)=>(i+1)+'월');
+  if(chMonthly) chMonthly.destroy();
+  // 수입: 수입구분(그룹)별 색상 분할 · 지출: 지출구분(필수/선택/비정기)별 색상 분할
+  const INC_PALETTE = ['#047857','#10b981','#14b8a6','#34d399','#22c55e','#84cc16','#0ea5e9','#4ade80'];
+  const incGroupOrder = [];
+  S.incomeCats.forEach(c=>{ if(c.group && c.group!=='소득 외' && !incGroupOrder.includes(c.group)) incGroupOrder.push(c.group); });
+  Object.keys(incByGroup).forEach(g=>{ if(!incGroupOrder.includes(g)) incGroupOrder.push(g); });
+  const incDatasets = incGroupOrder.filter(g=>incByGroup[g]).map((g,idx)=>({
+    label:g, data:incByGroup[g], backgroundColor:INC_PALETTE[idx%INC_PALETTE.length], stack:'inc', borderRadius:3
+  }));
+  const expDatasets = [
+    {label:'필수', data:expTier['필수'], backgroundColor:'#6366f1', stack:'exp'},
+    {label:'선택', data:expTier['선택'], backgroundColor:'#f59e0b', stack:'exp'},
+    {label:'비정기', data:expTier['비정기'], backgroundColor:'#ef4444', stack:'exp'}
+  ];
+  chMonthly = new Chart(document.getElementById('chMonthly'), {
+    type:'bar',
+    data:{labels, datasets:[...incDatasets, ...expDatasets]},
+    options:{maintainAspectRatio:false,
+      plugins:{legend:{labels:{boxWidth:12,boxHeight:12}}, tooltip:{callbacks:{
+        label:c=>c.dataset.label+': '+won(c.raw),
+        footer:items=>items.length?['수입 합계: '+won(inc[items[0].dataIndex]),'지출 합계: '+won(exp[items[0].dataIndex])]:''
+      }}},
+      scales:{x:{stacked:true}, y:{stacked:true, ticks:{callback:v=>(v/10000)+'만'}}}}
+  });
+  renderCatCharts();
+  renderCatTable();
+  updateMonFilterUI();
+}
+const LEGEND_SQUARE = {position:'right', labels:{boxWidth:12,boxHeight:12}};
+function renderCatCharts(){
+  const sel = document.getElementById('dashMonth').value;
+  const selMajor = document.getElementById('dashMonthMajor').value;
+  const txs = yearTx().filter(t=>t.type==='지출' && (sel===''||t.month==sel));
+  const txsMajor = yearTx().filter(t=>t.type==='지출' && (selMajor===''||t.month==selMajor));
+  document.getElementById('methodScope').textContent = sel===''?'(연간)':`(${sel}월)`;
+  const byCat={}, byMethod={}, byMajor={};
+  txs.forEach(t=>{
+    byCat[t.category||'기타'] = (byCat[t.category||'기타']||0)+(+t.amount||0);
+    byMethod[t.method||'기타'] = (byMethod[t.method||'기타']||0)+(+t.amount||0);
+  });
+  txsMajor.forEach(t=>{
+    const maj = categoryMajor(t.category);
+    byMajor[maj] = (byMajor[maj]||0)+(+t.amount||0);
+  });
+  // 임의로 묶지 않고 실제 존재하는 계정만큼 그대로 표시(거래내역과 항상 1:1 일치)
+  const main = Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+  const palette=['#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1','#9ca3af','#84cc16','#06b6d4','#d946ef','#f43f5e','#a855f7','#22c55e','#eab308','#0ea5e9','#78716c','#fb7185'];
+  const colors = main.map((_,i)=>palette[i%palette.length]);
+  if(chCat) chCat.destroy();
+  chCat = new Chart(document.getElementById('chCat'),{type:'doughnut',
+    data:{labels:main.map(x=>x[0]),datasets:[{data:main.map(x=>x[1]),backgroundColor:colors}]},
+    options:{maintainAspectRatio:false,plugins:{legend:LEGEND_SQUARE,tooltip:{callbacks:{label:c=>c.label+': '+won(c.raw)}}}}});
+  // 대분류별 도넛(소분류 임의 병합 없이 카테고리 설정의 대분류 값으로 정확히 집계, 자체 연간/월별 필터 사용)
+  const majorArr = Object.entries(byMajor).sort((a,b)=>b[1]-a[1]);
+  const majorColors = majorArr.map((_,i)=>palette[i%palette.length]);
+  if(chCatMajor) chCatMajor.destroy();
+  chCatMajor = new Chart(document.getElementById('chCatMajor'),{type:'doughnut',
+    data:{labels:majorArr.map(x=>x[0]),datasets:[{data:majorArr.map(x=>x[1]),backgroundColor:majorColors}]},
+    options:{maintainAspectRatio:false,plugins:{legend:LEGEND_SQUARE,tooltip:{callbacks:{label:c=>c.label+': '+won(c.raw)}}}}});
+  const me = Object.entries(byMethod).sort((a,b)=>b[1]-a[1]);
+  if(chMethod) chMethod.destroy();
+  chMethod = new Chart(document.getElementById('chMethod'),{type:'bar',
+    data:{labels:me.map(x=>x[0]),datasets:[{data:me.map(x=>x[1]),backgroundColor:'#6366f1',borderRadius:4}]},
+    options:{indexAxis:'y',maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>won(c.raw)}}},
+      scales:{x:{ticks:{callback:v=>(v/10000)+'만'}}}}});
+}
+function renderCatTable(){
+  const by={};
+  yearTx().filter(t=>t.type==='지출').forEach(t=>{
+    const k=t.category||'기타'; if(!by[k]) by[k]={sum:0,cnt:0,months:Array(12).fill(0)};
+    by[k].sum+=+t.amount||0; by[k].cnt++; by[k].months[t.month-1]+=+t.amount||0;
+  });
+  const total = Object.values(by).reduce((a,x)=>a+x.sum,0)||1;
+  const rows = Object.entries(by).sort((a,b)=>b[1].sum-a[1].sum);
+  let h='<thead><tr><th>계정</th><th class="num">연간 합계</th><th class="num">비중</th><th class="num">건수</th><th class="num">월평균</th></tr></thead><tbody>';
+  rows.forEach(([k,x])=>{
+    const mcnt = x.months.filter(v=>v>0).length||1;
+    h+=`<tr><td>${esc(k)}</td><td class="num">${fmt(x.sum)}</td><td class="num">${(x.sum/total*100).toFixed(1)}%</td><td class="num">${x.cnt}</td><td class="num">${fmt(x.sum/mcnt)}</td></tr>`;
+  });
+  document.getElementById('tblCat').innerHTML = h+'</tbody>';
+}
+const dm = document.getElementById('dashMonth');
+dm.innerHTML = '<option value="">연간</option>'+Array.from({length:12},(_,i)=>`<option value="${i+1}">${i+1}월</option>`).join('');
+dm.onchange = renderCatCharts;
+const dmMajor = document.getElementById('dashMonthMajor');
+dmMajor.innerHTML = '<option value="">연간</option>'+Array.from({length:12},(_,i)=>`<option value="${i+1}">${i+1}월</option>`).join('');
+dmMajor.onchange = renderCatCharts;
+
+// ---------- 월별 수입/지출 필터 ----------
+function monIncCats(){ return S.incomeCats.map(c=>({group:c.group||'기타', name:c.name})); }
+function monExpCats(){ return S.expenseCats.map(c=>({group:c.tier||'선택', name:c.name})); }
+// 지출구분 항목(설정된 지출구분들을 표시 순서대로) 및 대분류 항목
+function monTierItems(){
+  const seen=[]; S.expenseCats.forEach(c=>{ const t=c.tier||'선택'; if(!seen.includes(t)) seen.push(t); });
+  ['필수','선택','비정기'].forEach(t=>{ if(!seen.includes(t)) seen.push(t); });
+  return seen.map(t=>({group:'지출구분', name:t}));
+}
+function monMajorItems(){
+  const seen=[]; S.expenseCats.forEach(c=>{ const m=c.major||c.name; if(!seen.includes(m)) seen.push(m); });
+  return seen.map(m=>({group:'대분류', name:m}));
+}
+function updateMselCount(elId, cats, exclSet){
+  const el = document.getElementById(elId); if(!el) return;
+  const cnt = el.querySelector('.cnt'); if(!cnt) return;
+  const total = new Set(cats.map(c=>c.name)).size;
+  const active = total - [...exclSet].filter(n=>cats.some(c=>c.name===n)).length;
+  cnt.textContent = (active>=total) ? '전체' : `${active}/${total}`;
+}
+function buildMsel(elId, label, cats, exclSet){
+  const el = document.getElementById(elId); if(!el) return;
+  // 더 이상 존재하지 않는 카테고리는 제외 목록에서 정리
+  const names = new Set(cats.map(c=>c.name));
+  [...exclSet].forEach(n=>{ if(!names.has(n)) exclSet.delete(n); });
+  const groups = {};
+  cats.forEach(c=>{ if(!groups[c.group]) groups[c.group]=[]; if(!groups[c.group].includes(c.name)) groups[c.group].push(c.name); });
+  let pop = '<div class="tools"><button type="button" data-act="all">전체 선택</button><button type="button" data-act="none">전체 해제</button></div>';
+  Object.entries(groups).forEach(([g,ns])=>{
+    pop += `<div class="grp">${esc(g)}</div>`;
+    ns.forEach(n=>{ pop += `<label><input type="checkbox" value="${esc(n)}"${exclSet.has(n)?'':' checked'}>${esc(n)}</label>`; });
+  });
+  el.innerHTML = `<button type="button" class="mbtn">${esc(label)} <span class="cnt"></span> ▾</button><div class="pop">${pop}</div>`;
+  const btn = el.querySelector('.mbtn');
+  btn.onclick = e=>{ e.stopPropagation(); document.querySelectorAll('.msel.open').forEach(m=>{ if(m!==el) m.classList.remove('open'); }); el.classList.toggle('open'); };
+  el.querySelector('.pop').onclick = e=> e.stopPropagation();
+  el.querySelectorAll('.tools button').forEach(b=>{
+    b.onclick = ()=>{
+      const check = b.dataset.act==='all';
+      el.querySelectorAll('.pop input[type=checkbox]').forEach(cb=>{ cb.checked = check; if(check) exclSet.delete(cb.value); else exclSet.add(cb.value); });
+      renderDash();
+    };
+  });
+  el.querySelectorAll('.pop input[type=checkbox]').forEach(cb=>{
+    cb.onchange = ()=>{ if(cb.checked) exclSet.delete(cb.value); else exclSet.add(cb.value); renderDash(); };
+  });
+  updateMselCount(elId, cats, exclSet);
+}
+function renderMonFilters(){
+  buildMsel('mfInc','수입', monIncCats(), MON_EXCL_INC);
+  buildMsel('mfTier','지출구분', monTierItems(), MON_EXCL_TIER);
+  buildMsel('mfMajor','대분류', monMajorItems(), MON_EXCL_MAJOR);
+  buildMsel('mfExp','지출', monExpCats(), MON_EXCL_EXP);
+}
+function updateMonFilterUI(){
+  updateMselCount('mfInc', monIncCats(), MON_EXCL_INC);
+  updateMselCount('mfTier', monTierItems(), MON_EXCL_TIER);
+  updateMselCount('mfMajor', monMajorItems(), MON_EXCL_MAJOR);
+  updateMselCount('mfExp', monExpCats(), MON_EXCL_EXP);
+  const note = document.getElementById('monFilterNote');
+  if(note){
+    const parts=[];
+    if(MON_EXCL_INC.size) parts.push(`수입 ${MON_EXCL_INC.size}개 제외`);
+    if(MON_EXCL_TIER.size) parts.push(`지출구분 ${MON_EXCL_TIER.size}개 제외`);
+    if(MON_EXCL_MAJOR.size) parts.push(`대분류 ${MON_EXCL_MAJOR.size}개 제외`);
+    if(MON_EXCL_EXP.size) parts.push(`지출 ${MON_EXCL_EXP.size}개 제외`);
+    note.textContent = parts.length ? '· '+parts.join(' · ')+' 반영' : '';
+  }
+}
+// 팝업 바깥 클릭 시 닫기
+document.addEventListener('click', ()=> document.querySelectorAll('.msel.open').forEach(m=>m.classList.remove('open')));
+
+// ---------- transactions ----------
+let curMonth = Math.min(new Date().getMonth()+1, 12);
+const mt = document.getElementById('monthTabs');
+mt.innerHTML = Array.from({length:12},(_,i)=>`<button data-m="${i+1}">${i+1}월</button>`).join('');
+mt.querySelectorAll('button').forEach(b=>b.onclick=()=>{curMonth=+b.dataset.m; renderTx();});
+['fType','fCat','fMethod','fAcct','fDay','fSearch'].forEach(id=>document.getElementById(id).oninput=renderTx);
+
+// ---------- calendar ----------
+function renderCalendar(monthTxs, year, month){
+  const byDay = {};
+  monthTxs.forEach(t=>{
+    if(!t.day) return;
+    if(!byDay[t.day]) byDay[t.day] = {inc:0, exp:0};
+    if(isInc(t)) byDay[t.day].inc += +t.amount||0;
+    else if(t.type==='지출') byDay[t.day].exp += +t.amount||0;
+  });
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const startDow = new Date(year, month-1, 1).getDay();
+  const today = new Date(); today.setHours(0,0,0,0);
+  calMonthLabel.textContent = `${year}년 ${month}월`;
+  let html = ['일','월','화','수','목','금','토'].map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  for(let i=0;i<startDow;i++) html += '<div class="cal-day empty"></div>';
+  for(let d=1; d<=daysInMonth; d++){
+    const info = byDay[d];
+    const isToday = today.getFullYear()===year && today.getMonth()+1===month && today.getDate()===d;
+    const isSelected = fDay.value === String(d);
+    html += `<div class="cal-day${isToday?' today':''}${isSelected?' on':''}" onclick="selectCalDay(${d})">
+      <div class="dnum">${d}</div>
+      ${info&&info.inc?`<div class="di">+${fmt(info.inc)}</div>`:''}
+      ${info&&info.exp?`<div class="de">-${fmt(info.exp)}</div>`:''}
+    </div>`;
+  }
+  calGrid.innerHTML = html;
+}
+window.selectCalDay = d=>{
+  fDay.value = (fDay.value===String(d)) ? '' : String(d);
+  renderTx();
+};
+
+// ---------- 전월 대비 당월 지출 추이 ----------
+function dailyExpenseArray(year, month){
+  const days = new Date(year, month, 0).getDate();
+  const arr = Array(days).fill(0);
+  allTx().filter(t=>(t.year||SEED.year)===year && t.month===month && t.type==='지출').forEach(t=>{
+    if(t.day) arr[t.day-1] += +t.amount||0;
+  });
+  return arr;
+}
+function renderMoMChart(){
+  let py=S.curYear, pm=curMonth-1;
+  if(pm===0){ pm=12; py=S.curYear-1; }
+  const curArr = dailyExpenseArray(S.curYear, curMonth);
+  const prevArr = dailyExpenseArray(py, pm);
+  let cs=0, ps=0;
+  const curCum = curArr.map(v=>cs+=v);
+  const prevCum = prevArr.map(v=>ps+=v);
+  const maxDays = Math.max(curCum.length, prevCum.length);
+  const labels = Array.from({length:maxDays},(_,i)=>(i+1)+'일');
+  if(chMoM) chMoM.destroy();
+  chMoM = new Chart(document.getElementById('chMoM'), {
+    type:'line',
+    data:{labels, datasets:[
+      {label:`전월(${py}.${pm})`, data:prevCum, borderColor:'#9ca3af', backgroundColor:'transparent', borderDash:[5,3], tension:0.2, pointRadius:0},
+      {label:`당월(${S.curYear}.${curMonth})`, data:curCum, borderColor:'#ef4444', backgroundColor:'transparent', tension:0.2, pointRadius:0}
+    ]},
+    options:{maintainAspectRatio:false,
+      plugins:{tooltip:{callbacks:{label:c=>c.dataset.label+': '+won(c.raw)}}},
+      scales:{y:{ticks:{callback:v=>(v/10000)+'만'}}}}
+  });
+}
+
+function renderTx(){
+  EXCL = exclInc();
+  mt.querySelectorAll('button').forEach(b=>b.classList.toggle('on', +b.dataset.m===curMonth));
+  const ft=fType.value, fc=fCat.value, fm=fMethod.value, fa=fAcct.value, fd=fDay.value, fs=fSearch.value.trim().toLowerCase();
+  let txs = yearTx().filter(t=>t.month===curMonth);
+  const fullTxs = txs.slice(); // 필터 적용 전 이번 달 전체 (달력·요약카드·필터 옵션은 이 기준)
+  const mi = txs.filter(isInc).reduce((a,t)=>a+(+t.amount||0),0);
+  const mx = txs.filter(t=>t.type==='지출').reduce((a,t)=>a+(+t.amount||0),0);
+  mIncome.textContent=won(mi); mExpense.textContent=won(mx);
+  mNet.textContent=won(mi-mx); mNet.className='v '+(mi>=mx?'pos':'neg');
+  renderCalendar(fullTxs, S.curYear, curMonth);
+  renderMoMChart();
+  // 필터 옵션은 항상 이번 달 실제 데이터 기준으로 채워짐 (표의 계정·수단·계좌 칼럼과 그대로 대응)
+  const cats=[...new Set(fullTxs.map(t=>t.category).filter(Boolean))].sort();
+  const methods=[...new Set(fullTxs.map(t=>t.method).filter(Boolean))].sort();
+  const accts=[...new Set(fullTxs.map(t=>t.account).filter(Boolean))].sort();
+  const days=[...new Set(fullTxs.map(t=>t.day).filter(Boolean))].sort((a,b)=>a-b);
+  const curCat=fCat.value, curMethod=fMethod.value, curAcct=fAcct.value, curDay=fDay.value;
+  fCat.innerHTML='<option value="">전체 계정</option>'+cats.map(c=>`<option${c===curCat?' selected':''}>${esc(c)}</option>`).join('');
+  fMethod.innerHTML='<option value="">전체 수단</option>'+methods.map(m=>`<option${m===curMethod?' selected':''}>${esc(m)}</option>`).join('');
+  fAcct.innerHTML='<option value="">전체 계좌</option>'+accts.map(a=>`<option${a===curAcct?' selected':''}>${esc(a)}</option>`).join('');
+  fDay.innerHTML='<option value="">전체 날짜</option>'+days.map(d=>`<option value="${d}"${String(d)===curDay?' selected':''}>${d}일</option>`).join('');
+  if(ft) txs=txs.filter(t=>t.type===ft);
+  if(fc) txs=txs.filter(t=>t.category===fc);
+  if(fm) txs=txs.filter(t=>t.method===fm);
+  if(fa) txs=txs.filter(t=>t.account===fa);
+  if(fd) txs=txs.filter(t=>String(t.day)===fd);
+  if(fs) txs=txs.filter(t=>((t.detail||'')+(t.memo||'')+(t.category||'')).toLowerCase().includes(fs));
+  txs.sort((a,b)=>(a.day||0)-(b.day||0));
+  txBody.innerHTML = txs.map(t=> t._cardVirtual ? `<tr class="cardrow">
+    <td>${t.month}/${t.day??''} (${t.weekday||''})</td>
+    <td><span class="tag 계좌이동">계좌이동</span> <span class="tag ${t.status}">${t.status}</span></td>
+    <td>${esc(t.category)}</td>
+    <td class="num">
+      <input type="text" inputmode="numeric" class="amt-input cardov" data-card="${esc(t.cardName)}" data-y="${t.year}" data-m="${t.month}"
+        value="${t.manualSet?fmt(t.amount):''}" placeholder="자동 ${fmt(t.autoAmount)}">
+    </td>
+    <td style="white-space:normal">${esc(t.detail)}</td>
+    <td>${esc(t.method)}</td>
+    <td>${esc(t.account)}</td>
+    <td style="white-space:normal">${esc(t.memo)}</td>
+    <td><button type="button" class="btn sm primary" onclick="applyCardOverride(this)">적용</button>
+        ${t.manualSet?'<button type="button" class="btn sm danger" onclick="clearCardOverride(this)">자동으로</button>':''}</td>
+  </tr>` : `<tr class="${t._edited?'edited':''}">
+    <td>${t.month}/${t.day??''} (${t.weekday||''})</td>
+    <td><span class="tag ${t.type}">${t.type||''}</span></td>
+    <td>${esc(t.category)||(t.type==='계좌이동'?'이동':'')}</td>
+    <td class="num ${t.type==='수입'?'pos':t.type==='지출'?'neg':''}">${fmt(t.amount)}</td>
+    <td style="white-space:normal">${esc(t.detail)}</td>
+    <td>${esc(t.method)}</td>
+    <td>${esc(t.account)}</td>
+    <td style="white-space:normal">${esc(t.memo)}</td>
+    <td><button class="btn sm" onclick="editTx('${t.id}')">수정</button>
+        <button class="btn danger sm" onclick="delTx('${t.id}')">삭제</button></td>
+  </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:#9ca3af;padding:24px">거래 내역이 없습니다</td></tr>';
+  txNote.textContent = `${S.curYear}년 ${curMonth}월 · ${txs.length}건 표시 · 노란 배경 = 웹에서 추가/수정된 항목, 점선 테두리 칸(카드값출금) = 카드 사용액 기준 자동계산 (직접 입력하면 수동 금액으로 고정, 비우면 자동계산으로 복귀)`;
+}
+
+// ---------- tx add / edit ----------
+const dlg = document.getElementById('dlg');
+let editId = null;
+function fillForm(t){
+  const y = t?.year||S.curYear, m = t?.month||curMonth, day = t?.day||1;
+  inDate.value = `${y}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+  inType.value = t?.type||'지출';
+  refreshCatOptions();
+  if(t?.category) inCat.value = t.category;
+  setAmt(inAmount, t?.amount);
+  inDetail.value = t?.detail||'';
+  refreshMethodOptions();
+  if(t?.method) inMethod.value=t.method;
+  refreshAccountOptions();
+  if(t?.account) inAccount.value=t.account;
+  inMemo.value = t?.memo||'';
+}
+function refreshCatOptions(){
+  const t = inType.value;
+  let opts=[];
+  if(t==='수입') opts = S.incomeCats.map(c=>c.name);
+  else if(t==='지출') opts = S.expenseCats.map(c=>c.name);
+  inCat.innerHTML = t==='계좌이동' ? '<option value="">-</option>' : opts.map(o=>`<option>${esc(o)}</option>`).join('');
+  inCat.disabled = t==='계좌이동';
+}
+function refreshMethodOptions(){
+  const acctNames = S.accounts.map(a=>a.name);
+  const t = inType.value;
+  let methods = t==='지출' ? ['현금','체크카드','신용카드','타인 계좌이체'] : t==='수입' ? ['계좌입금','현금'] : acctNames;
+  inMethod.innerHTML = methods.map(m=>`<option>${esc(m)}</option>`).join('');
+  lblMethod.textContent = t==='계좌이동' ? '출발 계좌' : (t==='수입'?'입금 방법':'결제 수단');
+}
+function refreshAccountOptions(){
+  const t = inType.value, mth = inMethod.value;
+  const allAccts = S.accounts.map(a=>a.name);
+  let opts;
+  if(t==='계좌이동'){
+    opts = allAccts; lblAccount.textContent = '도착 계좌';
+  } else if(t==='지출' && mth==='신용카드'){
+    opts = S.cards.map(c=>c.name); lblAccount.textContent = '신용카드';
+  } else if(t==='지출' && mth==='체크카드'){
+    opts = S.accounts.filter(a=>a.hasCheckCard).map(a=>a.name);
+    if(!opts.length) opts = allAccts;
+    lblAccount.textContent = '체크카드 연동 계좌';
+  } else if(t==='지출' && mth==='현금'){
+    opts = ['내 지갑']; lblAccount.textContent = '지급처';
+  } else {
+    opts = allAccts; lblAccount.textContent = t==='수입' ? '입금 계좌' : '계좌';
+  }
+  const cur = inAccount.value;
+  inAccount.innerHTML = '<option value=""></option>'+opts.map(a=>`<option${a===cur?' selected':''}>${esc(a)}</option>`).join('');
+}
+inType.onchange = ()=>{refreshCatOptions();refreshMethodOptions();refreshAccountOptions();};
+inMethod.onchange = refreshAccountOptions;
+btnAdd.onclick = ()=>{editId=null; dlgTitle.textContent='거래 추가'; fillForm(null); dlg.showModal();};
+window.editTx = id=>{
+  const t = allTx().find(x=>x.id===id); if(!t) return;
+  editId=id; dlgTitle.textContent='거래 수정'; fillForm(t); dlg.showModal();
+};
+window.delTx = id=>{
+  if(!confirm('이 거래를 삭제할까요?')) return;
+  if(id.startsWith('u')) S.added = S.added.filter(t=>t.id!==id);
+  else { S.deleted.push(id); delete S.edited[id]; }
+  save(); renderAll();
+};
+document.getElementById('txForm').onsubmit = ()=>{
+  const d = new Date(inDate.value);
+  const rec = {
+    year: d.getFullYear(), month: d.getMonth()+1, day: d.getDate(), weekday: WD[d.getDay()],
+    type: inType.value, category: inCat.value||null, amount: numVal(inAmount),
+    detail: inDetail.value||null, method: inMethod.value||null,
+    account: inAccount.value||null, memo: inMemo.value||null
+  };
+  if(editId){
+    if(editId.startsWith('u')){
+      const i = S.added.findIndex(t=>t.id===editId);
+      S.added[i] = {...rec, id:editId};
+    } else S.edited[editId] = rec;
+  } else {
+    rec.id = 'u'+Date.now();
+    S.added.push(rec);
+    S.curYear = rec.year; curMonth = rec.month;
+  }
+  save(); renderAll();
+};
+
+function saveCardOverride(input){
+  const card=input.dataset.card, y=+input.dataset.y, m=+input.dataset.m;
+  const key = `${card}|${y}|${m}`;
+  if(input.value.trim()==='') delete S.cardManual[key];
+  else S.cardManual[key] = numVal(input);
+  save(); renderAll();
+}
+window.applyCardOverride = btn=>{
+  const input = btn.closest('tr').querySelector('.cardov');
+  if(!input.value.trim()){ alert('반영할 금액을 입력한 뒤 [적용]을 눌러주세요. 자동계산으로 되돌리려면 [자동으로] 버튼을 사용하세요.'); return; }
+  saveCardOverride(input);
+};
+window.clearCardOverride = btn=>{
+  const input = btn.closest('tr').querySelector('.cardov');
+  input.value='';
+  saveCardOverride(input);
+};
+// 입력 후 다른 곳을 클릭(blur)해도 자동 저장되도록 보조 지원 (버튼 없이도 동작)
+document.addEventListener('change', e=>{
+  if(e.target.classList && e.target.classList.contains('cardov') && e.target.value.trim()!=='') saveCardOverride(e.target);
+});
+
+// ---------- export / backup ----------
+function download(name, content, mime){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([content],{type:mime}));
+  a.download=name; a.click();
+}
+btnCsv.onclick=()=>{
+  const rows=[['년','월','일','요일','구분','계정','금액','상세내역','수단','계좌','비고']];
+  allTx().sort((a,b)=>(a.year||0)-(b.year||0)||a.month-b.month||a.day-b.day)
+    .forEach(t=>rows.push([t.year||SEED.year,t.month,t.day,t.weekday,t.type,t.category,t.amount,t.detail,t.method,t.account,t.memo].map(v=>v==null?'':v)));
+  const csv='﻿'+rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  download('가계부_전체.csv', csv, 'text/csv');
+};
+btnBackup.onclick=()=>download('가계부_백업.json', JSON.stringify(S), 'application/json');
+btnRestore.onclick=()=>fileRestore.click();
+fileRestore.onchange=e=>{
+  const f=e.target.files[0]; if(!f) return;
+  f.text().then(t=>{
+    const d = JSON.parse(t);
+    if(d.accounts||d.incomeCats){ S = d; }                      // v2/v3 백업
+    else { S.added=d.added||[]; S.edited=d.edited||{}; S.deleted=d.deleted||[]; } // v1 백업
+    ['accounts','incomeCats','expenseCats','cards','added','deleted'].forEach(k=>{ if(!Array.isArray(S[k])) S[k]=defaultState()[k]; });
+    if(!S.edited) S.edited={};
+    if(!S.cardManual) S.cardManual={};
+    if(!S.curYear) S.curYear=SEED.year;
+    if(!S.baseDate) S.baseDate=SEED.lastRecord;
+    S.expenseCats.forEach(c=>{ if(!c.tier) c.tier = DEFAULT_TIER[c.name] || '선택'; });
+    save(); renderAll(); alert('복원 완료');
+  }).catch(()=>alert('복원 실패: 올바른 백업 파일이 아닙니다'));
+};
+btnReset.onclick=()=>{
+  if(!confirm('앱에 저장된 모든 데이터(추가/수정한 거래, 계좌·카드·카테고리 변경, 기준일 등)를 초기 상태로 되돌릴까요?\n먼저 [백업(JSON)]으로 저장해두는 것을 권장합니다.\n\n이 작업은 되돌릴 수 없습니다.')) return;
+  localStorage.removeItem(LS_KEY);
+  localStorage.removeItem('ledgerApp_v2');
+  localStorage.removeItem('ledger2026_user');
+  localStorage.removeItem(DRIVE_FLAG);   // 초기화 시 Drive 자동연결도 해제 (클라우드 파일은 유지)
+  location.reload();
+};
+
+// ================= Google Drive 동기화 =================
+let driveToken=null, driveTokenExp=0, driveFileId=null, driveTokenClient=null, drivePending=null, drivePushTimer=null;
+function driveConfigured(){ return !!GOOGLE_CLIENT_ID && typeof google!=='undefined' && google.accounts && google.accounts.oauth2; }
+function driveConnected(){ return localStorage.getItem(DRIVE_FLAG)==='1'; }
+function driveTimeStr(ts){ if(!ts) return ''; const d=new Date(ts); const p=n=>String(n).padStart(2,'0'); return `${d.getMonth()+1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`; }
+function driveSetStatus(msg, connected){
+  const s=document.getElementById('driveStatus'), b=document.getElementById('btnDrive'), y=document.getElementById('btnDriveSync');
+  if(s) s.textContent = msg?('· '+msg):'';
+  if(b) b.textContent = connected ? 'Google Drive 해제' : 'Google Drive 연결';
+  if(y) y.style.display = connected ? '' : 'none';
+}
+function driveInitClient(){
+  if(driveTokenClient || !driveConfigured()) return;
+  driveTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID, scope: DRIVE_SCOPE,
+    callback: (resp)=>{
+      const p=drivePending; drivePending=null;
+      if(resp && resp.access_token){
+        driveToken=resp.access_token;
+        driveTokenExp=Date.now()+((resp.expires_in||3600)*1000)-60000;
+        localStorage.setItem(DRIVE_FLAG,'1');
+        p && p.resolve(driveToken);
+      } else { p && p.reject(new Error((resp&&resp.error)||'no_token')); }
+    },
+    error_callback: (err)=>{ const p=drivePending; drivePending=null; p && p.reject(err||new Error('oauth_error')); }
+  });
+}
+function driveEnsureToken(interactive){
+  if(driveToken && Date.now()<driveTokenExp) return Promise.resolve(driveToken);
+  if(!driveConfigured()) return Promise.reject(new Error('not_configured'));
+  driveInitClient();
+  return new Promise((resolve,reject)=>{
+    drivePending={resolve,reject};
+    try{ driveTokenClient.requestAccessToken({prompt: interactive?'':'none'}); }
+    catch(e){ drivePending=null; reject(e); }
+  });
+}
+async function driveFindFileId(token){
+  const q=encodeURIComponent(`name='${DRIVE_FILENAME}' and trashed=false`);
+  const r=await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,modifiedTime)`,{headers:{Authorization:'Bearer '+token}});
+  if(!r.ok) throw new Error('list '+r.status);
+  const d=await r.json();
+  return (d.files && d.files[0]) ? d.files[0].id : null;
+}
+async function driveDownload(token, id){
+  const r=await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`,{headers:{Authorization:'Bearer '+token}});
+  if(!r.ok) throw new Error('download '+r.status);
+  return r.json();
+}
+async function driveUpload(token, id, obj){
+  const body=JSON.stringify(obj);
+  if(id){
+    const r=await fetch(`https://www.googleapis.com/upload/drive/v3/files/${id}?uploadType=media`,{
+      method:'PATCH', headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'}, body});
+    if(!r.ok) throw new Error('update '+r.status); return id;
+  }
+  const boundary='ledgerbnd'+Date.now();
+  const meta={name:DRIVE_FILENAME, mimeType:'application/json'};
+  const multipart=`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${body}\r\n--${boundary}--`;
+  const r=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',{
+    method:'POST', headers:{Authorization:'Bearer '+token,'Content-Type':'multipart/related; boundary='+boundary}, body:multipart});
+  if(!r.ok) throw new Error('create '+r.status);
+  return (await r.json()).id;
+}
+async function drivePushNow(){
+  if(!driveConfigured()) return;
+  const token=await driveEnsureToken(false);
+  if(!S.updatedAt) S.updatedAt=Date.now();
+  if(driveFileId===null) driveFileId=await driveFindFileId(token);
+  driveFileId=await driveUpload(token, driveFileId, S);
+}
+function drivePushSoon(){
+  if(!driveConfigured() || !driveConnected()) return;
+  clearTimeout(drivePushTimer);
+  driveSetStatus('저장 중…', true);
+  drivePushTimer=setTimeout(()=>{
+    drivePushNow().then(()=>driveSetStatus('동기화됨 '+driveTimeStr(S.updatedAt), true))
+                  .catch(()=>driveSetStatus('동기화 오류(이 기기엔 저장됨)', true));
+  }, 1500);
+}
+async function drivePull(firstConnect){
+  const token=await driveEnsureToken(firstConnect?true:false);
+  driveFileId=await driveFindFileId(token);
+  if(driveFileId){
+    const remote=await driveDownload(token, driveFileId);
+    const rT=(remote&&remote.updatedAt)||0, lT=S.updatedAt||0;
+    let useRemote = rT>lT;
+    if(firstConnect){
+      useRemote = confirm('Google Drive에 저장된 가계부 데이터가 있습니다.\n\n[확인] Drive 데이터를 이 기기로 불러오기\n[취소] 이 기기의 데이터를 Drive에 덮어쓰기');
+    }
+    if(useRemote){
+      S=remote; normalizeState();
+      localStorage.setItem(LS_KEY, JSON.stringify(S));
+      EXCL = exclInc(); renderAll();
+      driveSetStatus('불러옴 '+driveTimeStr(S.updatedAt), true);
+      return;
+    }
+  }
+  await drivePushNow();
+  driveSetStatus('동기화됨 '+driveTimeStr(S.updatedAt), true);
+}
+document.getElementById('btnDrive').onclick=()=>{
+  if(!GOOGLE_CLIENT_ID){ alert('먼저 이 파일 코드 상단의 GOOGLE_CLIENT_ID 에 본인 Google OAuth 클라이언트 ID를 입력해야 합니다.\n(설정 방법은 대화 안내를 참고하세요)'); return; }
+  if(driveConnected()){
+    try{ driveToken && google.accounts.oauth2.revoke(driveToken, ()=>{}); }catch(_){}
+    driveToken=null; driveFileId=null; localStorage.removeItem(DRIVE_FLAG);
+    driveSetStatus('연결 해제됨', false);
+  } else {
+    driveInitClient();
+    driveSetStatus('연결 중…', false);
+    driveEnsureToken(true).then(()=>drivePull(true)).catch(()=>driveSetStatus('연결 실패(다시 시도)', false));
+  }
+};
+document.getElementById('btnDriveSync').onclick=()=>{
+  driveSetStatus('동기화 중…', true);
+  drivePull(false).catch(()=>driveSetStatus('동기화 오류', true));
+};
+function driveAutoStart(tries){
+  tries=tries||0;
+  if(!GOOGLE_CLIENT_ID){ driveSetStatus('미설정 (Client ID 입력 필요)', false); return; }
+  if(typeof google==='undefined' || !google.accounts){ if(tries<20) setTimeout(()=>driveAutoStart(tries+1),400); return; }
+  driveInitClient();
+  if(driveConnected()){
+    driveSetStatus('연결 중…', true);
+    driveEnsureToken(false).then(()=>drivePull(false)).catch(()=>driveSetStatus('다시 연결하세요(클릭)', false));
+  } else {
+    driveSetStatus('연결 안 됨', false);
+  }
+}
+
+// ---------- 가져오기 (엑셀·CSV·텍스트) ----------
+// CSV 내보내기와 동일한 컬럼(년,월,일,요일,구분,계정,금액,상세내역,수단,계좌,비고)을
+// 헤더명 기준으로 인식해서 파싱. 헤더를 못 찾으면 그 순서를 그대로 가정.
+const HEADER_ALIASES = {
+  '년':['년','연도','year'], '월':['월','month'], '일':['일','day'],
+  '요일':['요일','weekday'], '구분':['구분','유형','type'], '계정':['계정','카테고리','category'],
+  '금액':['금액','amount'], '상세내역':['상세내역','내용','상세','detail'],
+  '수단':['수단','결제수단','method'], '계좌':['계좌','account'], '비고':['비고','메모','memo']
+};
+function findHeaderRow(rows){
+  for(let i=0;i<Math.min(rows.length,10);i++){
+    const row = rows[i].map(v=>String(v??'').trim());
+    let hit=0;
+    Object.values(HEADER_ALIASES).forEach(aliases=>{ if(row.some(c=>aliases.includes(c))) hit++; });
+    if(hit>=4) return i;
+  }
+  return -1;
+}
+function mapHeaderIdx(headerRow){
+  const norm = headerRow.map(v=>String(v??'').trim());
+  const idx = {};
+  Object.entries(HEADER_ALIASES).forEach(([key,aliases])=>{
+    idx[key] = norm.findIndex(c=>aliases.includes(c));
+  });
+  return idx;
+}
+function parseCsvText(text){
+  text = text.replace(/^﻿/, '');
+  const rows=[]; let row=[]; let field=''; let inQ=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(inQ){
+      if(c==='"'){ if(text[i+1]==='"'){ field+='"'; i++; } else inQ=false; }
+      else field+=c;
+    } else {
+      if(c==='"') inQ=true;
+      else if(c===','){ row.push(field); field=''; }
+      else if(c==='\n'){ row.push(field); rows.push(row); row=[]; field=''; }
+      else if(c==='\r'){ /* skip */ }
+      else field+=c;
+    }
+  }
+  if(field!=='' || row.length){ row.push(field); rows.push(row); }
+  return rows.filter(r=>r.some(c=>String(c).trim()!==''));
+}
+function numFromCell(v){
+  if(v==null) return NaN;
+  if(typeof v==='number') return v;
+  const s=String(v).replace(/[,원\s]/g,'');
+  return s===''?NaN:Number(s);
+}
+function excelDateToParts(v){
+  if(typeof v==='number'){
+    const d = new Date(Math.round((v-25569)*86400*1000));
+    return {y:d.getUTCFullYear(), m:d.getUTCMonth()+1, day:d.getUTCDate()};
+  }
+  const s=String(v??'').trim();
+  const m = s.match(/(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/);
+  if(m) return {y:+m[1], m:+m[2], day:+m[3]};
+  return null;
+}
+let importParsedRows = [];
+function parseImportRows(rows){
+  const headerIdx = findHeaderRow(rows);
+  const errors = [];
+  let dataRows, idx;
+  if(headerIdx>=0){
+    idx = mapHeaderIdx(rows[headerIdx]);
+    dataRows = rows.slice(headerIdx+1);
+  } else {
+    idx = {'년':0,'월':1,'일':2,'요일':3,'구분':4,'계정':5,'금액':6,'상세내역':7,'수단':8,'계좌':9,'비고':10};
+    dataRows = rows;
+  }
+  const out=[];
+  dataRows.forEach((r,ri)=>{
+    if(!r.some(c=>String(c??'').trim()!=='')) return;
+    const get = k => idx[k]>=0 && idx[k]<r.length ? r[idx[k]] : null;
+    let y = idx['년']>=0 ? Number(String(get('년')||'').trim()||NaN) : NaN;
+    let m = idx['월']>=0 ? Number(String(get('월')||'').trim()||NaN) : NaN;
+    let day = idx['일']>=0 ? Number(String(get('일')||'').trim()||NaN) : NaN;
+    if((!m || !day) && idx['월']>=0){
+      const parts = excelDateToParts(get('월'));
+      if(parts){ y=y||parts.y; m=parts.m; day=parts.day; }
+    }
+    const type = String(get('구분')||'').trim();
+    const amount = numFromCell(get('금액'));
+    const rowNum = ri + (headerIdx>=0?headerIdx+2:1);
+    if(!m || !day || !['수입','지출','계좌이동'].includes(type) || !isFinite(amount)){
+      errors.push(`${rowNum}행: 필수값 누락/형식 오류로 건너뜀 (월=${m||'-'}, 일=${day||'-'}, 구분=${type||'-'}, 금액=${get('금액')??'-'})`);
+      return;
+    }
+    if(!y) y = S.curYear;
+    const d = new Date(y, m-1, day);
+    out.push({
+      year:y, month:m, day:day, weekday: WD[d.getDay()],
+      type, category:(String(get('계정')||'').trim())||null,
+      amount, detail:(String(get('상세내역')||'').trim())||null,
+      method:(String(get('수단')||'').trim())||null,
+      account:(String(get('계좌')||'').trim())||null,
+      memo:(String(get('비고')||'').trim())||null
+    });
+  });
+  return {rows: out, errors, headerFound: headerIdx>=0};
+}
+function openImportPreview(rows){
+  const {rows:parsed, errors, headerFound} = parseImportRows(rows);
+  importParsedRows = parsed;
+  document.getElementById('importSummary').textContent =
+    (headerFound?'헤더를 인식했습니다.':'헤더를 찾지 못해 기본 순서(년/월/일/요일/구분/계정/금액/상세내역/수단/계좌/비고)로 처리했습니다.')
+    + ` 가져올 거래 ${parsed.length}건 · 건너뛴 행 ${errors.length}건`;
+  let h = '<thead><tr><th>년</th><th>월</th><th>일</th><th>구분</th><th>계정</th><th class="num">금액</th><th>상세내역</th><th>수단</th><th>계좌</th><th>비고</th></tr></thead><tbody>';
+  parsed.slice(0,200).forEach(t=>{
+    h += `<tr><td>${t.year}</td><td>${t.month}</td><td>${t.day}</td><td>${esc(t.type)}</td><td>${esc(t.category||'')}</td><td class="num">${fmt(t.amount)}</td><td>${esc(t.detail||'')}</td><td>${esc(t.method||'')}</td><td>${esc(t.account||'')}</td><td>${esc(t.memo||'')}</td></tr>`;
+  });
+  if(parsed.length>200) h += `<tr><td colspan="10" class="note">…외 ${parsed.length-200}건 더 (미리보기는 200건까지만 표시, 확정 시 전체 반영)</td></tr>`;
+  document.getElementById('importPreviewTbl').innerHTML = h+'</tbody>';
+  document.getElementById('importErrors').innerHTML = errors.length ? ('건너뛴 행:<br>'+errors.slice(0,50).map(esc).join('<br>') + (errors.length>50?`<br>…외 ${errors.length-50}건`:'')) : '';
+  document.getElementById('btnImportConfirm').disabled = parsed.length===0;
+  importDlg.showModal();
+}
+document.getElementById('btnImport').onclick = ()=>fileImport.click();
+fileImport.onchange = e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const ext = f.name.split('.').pop().toLowerCase();
+  if(ext==='xlsx' || ext==='xls'){
+    f.arrayBuffer().then(buf=>{
+      const wb = XLSX.read(buf, {type:'array'});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, {header:1, raw:true, defval:''});
+      openImportPreview(rows);
+    }).catch(err=>alert('엑셀 파일을 읽는 중 오류가 발생했습니다: '+err.message));
+  } else {
+    f.text().then(t=>{
+      const rows = parseCsvText(t);
+      openImportPreview(rows);
+    }).catch(err=>alert('파일을 읽는 중 오류가 발생했습니다: '+err.message));
+  }
+  fileImport.value = '';
+};
+document.getElementById('btnImportConfirm').onclick = ()=>{
+  if(!importParsedRows.length) return;
+  const n = importParsedRows.length;
+  importParsedRows.forEach((rec,i)=>{
+    rec.id = 'u'+Date.now()+'_'+i;
+    S.added.push(rec);
+  });
+  save(); renderAll();
+  importDlg.close();
+  alert(`${n}건의 거래를 가져왔습니다.`);
+  importParsedRows = [];
+};
+
+// ---------- accounts ----------
+const acctDlg = document.getElementById('acctDlg');
+let acctIdx = null;
+function renderAsset(){
+  baseDate.value = S.baseDate;
+  const acc = S.accounts;
+  const snap = a => (a.balance===null||a.balance===undefined||a.balance==='') ? (+a.init||0) : +a.balance;
+  const val = a => snap(a) + accountDelta(a.name);
+  const total = acc.reduce((s,a)=>s+val(a),0);
+  const groups = {'예적금':0,'투 자':0,'현 금':0};
+  acc.forEach(a=>{ groups[a.kind] = (groups[a.kind]||0)+val(a); });
+  aTotal.textContent = won(total);
+  aDate.textContent = '오늘 기준 예상 잔액 (기준일 ' + S.baseDate + ' 스냅샷 + 그 이후 완료된 거래·카드출금 자동 반영)';
+  aSaving.textContent = won(groups['예적금']||0);
+  aInvest.textContent = won(groups['투 자']||0);
+  aCash.textContent = won(groups['현 금']||0);
+  if(chAsset) chAsset.destroy();
+  const sorted = acc.filter(a=>val(a)>0).sort((a,b)=>val(b)-val(a));
+  chAsset = new Chart(document.getElementById('chAsset'),{type:'doughnut',
+    data:{labels:sorted.map(a=>a.name),datasets:[{data:sorted.map(val),
+      backgroundColor:['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1','#ef4444','#0ea5e9','#84cc16','#a855f7']}]},
+    options:{maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{boxWidth:12,boxHeight:12}},tooltip:{callbacks:{label:c=>c.label+': '+won(c.raw)+' ('+(c.raw/(total||1)*100).toFixed(1)+'%)'}}}}});
+  let h=`<thead><tr><th>계좌명</th><th>구분</th><th>은행</th><th>체크카드</th><th class="num">초기금액</th><th class="num">기준일(${S.baseDate}) 잔액</th><th class="num">오늘 기준 잔액</th><th></th></tr></thead><tbody>`;
+  acc.forEach((a,i)=>{
+    const cd = accountCardDelta(a.name), tot = accountDelta(a.name), od = tot - cd;
+    const parts=[];
+    if(cd) parts.push(`카드출금 ${fmt(cd)}`);
+    if(od) parts.push(`거래반영 ${od>0?'+':''}${fmt(od)}`);
+    h+=`<tr><td>${esc(a.name)}</td><td class="acct-kind">${esc(a.kind)}</td><td class="acct-kind">${esc(a.bank)}</td>
+      <td class="acct-kind">${a.hasCheckCard?'있음':'-'}</td>
+      <td class="num">${fmt(a.init)}</td>
+      <td class="num ${snap(a)>=0?'pos':'neg'}">${fmt(snap(a))}</td>
+      <td class="num ${val(a)>=0?'pos':'neg'}" style="font-weight:600">${fmt(val(a))}${parts.length?`<br><span class="note" style="font-weight:400">(${parts.join(', ')})</span>`:''}</td>
+      <td><button class="btn sm" onclick="editAcct(${i})">수정</button>
+          <button class="btn danger sm" onclick="delAcct(${i})">삭제</button></td></tr>`;
+  });
+  document.getElementById('tblAcct').innerHTML=h+'</tbody>';
+  let hc = '<thead><tr><th>카드</th><th>카드사</th><th>출금계좌</th><th class="num">출금일</th><th></th></tr></thead><tbody>';
+  S.cards.forEach((c,i)=>{
+    hc += `<tr><td>${esc(c.name)}</td><td>${esc(c.company)}</td><td>${esc(c.account)}</td><td class="num">매월 ${c.payday}일</td>
+      <td><button class="btn sm" onclick="editCardItem(${i})">수정</button>
+          <button class="btn danger sm" onclick="delCardItem(${i})">삭제</button></td></tr>`;
+  });
+  document.getElementById('tblCard').innerHTML = hc+'</tbody>';
+  renderAcctLedger();
+}
+const cardItemDlg = document.getElementById('cardItemDlg');
+let cardItemIdx = null;
+function refreshCardAcctOptions(cur){
+  ciAccount.innerHTML = S.accounts.map(a=>`<option${a.name===cur?' selected':''}>${esc(a.name)}</option>`).join('');
+}
+btnCardAdd.onclick = ()=>{
+  cardItemIdx=null; cardItemDlgTitle.textContent='카드 추가';
+  ciName.value=''; ciCompany.value=''; refreshCardAcctOptions(S.accounts[0]&&S.accounts[0].name); ciPayday.value=1;
+  cardItemDlg.showModal();
+};
+window.editCardItem = i=>{
+  cardItemIdx=i; const c=S.cards[i];
+  cardItemDlgTitle.textContent='카드 수정';
+  ciName.value=c.name; ciCompany.value=c.company||''; refreshCardAcctOptions(c.account); ciPayday.value=c.payday||1;
+  cardItemDlg.showModal();
+};
+window.delCardItem = i=>{
+  if(!confirm(`「${S.cards[i].name}」 카드를 삭제할까요?\n(기존 거래 기록은 유지되지만, 이 카드로 표시된 지출은 더 이상 결제일 자동계산에 포함되지 않습니다)`)) return;
+  S.cards.splice(i,1); save(); renderAsset();
+};
+document.getElementById('cardItemForm').onsubmit = ()=>{
+  const rec = {name:ciName.value.trim(), company:ciCompany.value.trim(), account:ciAccount.value, payday:Math.min(31,Math.max(1,+ciPayday.value||1))};
+  if(cardItemIdx===null) S.cards.push(rec);
+  else S.cards[cardItemIdx] = rec;
+  save(); renderAsset(); renderTx();
+};
+btnAcctAdd.onclick=()=>{
+  acctIdx=null; acctDlgTitle.textContent='계좌 추가';
+  acName.value=''; acKind.value='현 금'; acBank.value=''; setAmt(acInit,0); acBal.value=''; acCheckCard.checked=false;
+  acctDlg.showModal();
+};
+window.editAcct = i=>{
+  acctIdx=i; const a=S.accounts[i];
+  acctDlgTitle.textContent='계좌 수정';
+  acName.value=a.name; acKind.value=a.kind||'현 금'; acBank.value=a.bank||'';
+  setAmt(acInit, a.init||0); setAmt(acBal, (a.balance===null||a.balance===undefined)?'':a.balance);
+  acCheckCard.checked = !!a.hasCheckCard;
+  acctDlg.showModal();
+};
+window.delAcct = i=>{
+  if(!confirm(`「${S.accounts[i].name}」 계좌를 삭제할까요?\n(기존 거래 기록은 유지됩니다)`)) return;
+  S.accounts.splice(i,1); save(); renderAsset();
+};
+document.getElementById('acctForm').onsubmit=()=>{
+  const rec = {name:acName.value.trim(), kind:acKind.value, bank:acBank.value.trim(),
+    init:numVal(acInit), balance: acBal.value.trim()===''? null : numVal(acBal), hasCheckCard:acCheckCard.checked};
+  if(acctIdx===null) S.accounts.push(rec);
+  else S.accounts[acctIdx] = rec;
+  save(); renderAsset();
+};
+
+// ---------- categories ----------
+const catDlg = document.getElementById('catDlg');
+let catMode='inc', catIdx=null;
+function renderCats(){
+  let h='<thead><tr><th></th><th>수입구분</th><th>카테고리명</th><th></th></tr></thead><tbody>';
+  S.incomeCats.forEach((c,i)=>{
+    h+=`<tr draggable="true" data-i="${i}"><td class="grip" title="끌어서 순서 변경">⠿</td><td class="acct-kind">${esc(c.group)}</td><td>${esc(c.name)}</td>
+      <td style="text-align:right;white-space:nowrap"><button class="btn sm" onclick="editCat('inc',${i})">수정</button>
+      <button class="btn danger sm" onclick="delCat('inc',${i})">삭제</button></td></tr>`;
+  });
+  document.getElementById('tblIncCat').innerHTML=h+'</tbody>';
+  h='<thead><tr><th></th><th>지출구분</th><th>대분류</th><th>카테고리명</th><th></th></tr></thead><tbody>';
+  const tierTag = t=>`<span class="tag" style="background:${t==='필수'?'#e0e7ff':t==='선택'?'#dcfce7':'#fee2e2'};color:${t==='필수'?'#4338ca':t==='선택'?'#15803d':'#b91c1c'}">${esc(t)}</span>`;
+  S.expenseCats.forEach((c,i)=>{
+    h+=`<tr draggable="true" data-i="${i}"><td class="grip" title="끌어서 순서 변경">⠿</td><td>${tierTag(c.tier||'선택')}</td><td class="acct-kind">${esc(c.major)}</td><td>${esc(c.name)}</td>
+      <td style="text-align:right;white-space:nowrap"><button class="btn sm" onclick="editCat('exp',${i})">수정</button>
+      <button class="btn danger sm" onclick="delCat('exp',${i})">삭제</button></td></tr>`;
+  });
+  document.getElementById('tblExpCat').innerHTML=h+'</tbody>';
+  enableCatDnd('tblIncCat','inc');
+  enableCatDnd('tblExpCat','exp');
+}
+// 마우스로 행을 끌어 원하는 위치로 한 번에 이동 (드래그 앤 드롭)
+let catDnd = null;
+function clearDropMarks(tbody){ tbody.querySelectorAll('tr').forEach(r=>r.classList.remove('drop-before','drop-after')); }
+function enableCatDnd(tableId, mode){
+  const tbody = document.querySelector('#'+tableId+' tbody');
+  if(!tbody) return;
+  tbody.querySelectorAll('tr').forEach(tr=>{
+    tr.addEventListener('dragstart', e=>{
+      catDnd = {mode, from:+tr.dataset.i};
+      tr.classList.add('dragging');
+      e.dataTransfer.effectAllowed='move';
+      try{ e.dataTransfer.setData('text/plain', tr.dataset.i); }catch(_){}
+    });
+    tr.addEventListener('dragend', ()=>{ tr.classList.remove('dragging'); clearDropMarks(tbody); catDnd=null; });
+    tr.addEventListener('dragover', e=>{
+      if(!catDnd || catDnd.mode!==mode) return;
+      e.preventDefault(); e.dataTransfer.dropEffect='move';
+      const rect = tr.getBoundingClientRect();
+      const after = (e.clientY - rect.top) > rect.height/2;
+      clearDropMarks(tbody);
+      tr.classList.add(after?'drop-after':'drop-before');
+    });
+    tr.addEventListener('drop', e=>{
+      if(!catDnd || catDnd.mode!==mode) return;
+      e.preventDefault();
+      const rect = tr.getBoundingClientRect();
+      const after = (e.clientY - rect.top) > rect.height/2;
+      reorderCat(mode, catDnd.from, +tr.dataset.i + (after?1:0));
+    });
+  });
+}
+// from: 끌어온 원래 index, to: 삽입할 슬롯(0..len). 저장되어 드롭다운·거래 입력 등 전체에 반영
+function reorderCat(mode, from, to){
+  const list = mode==='exp'?S.expenseCats:S.incomeCats;
+  if(from<0 || from>=list.length) return;
+  const [item] = list.splice(from,1);
+  let ins = from < to ? to-1 : to;
+  ins = Math.max(0, Math.min(ins, list.length));
+  list.splice(ins, 0, item);
+  save(); renderCats(); renderMonFilters(); renderDash(); renderTx();
+}
+function openCatDlg(mode, idx){
+  catMode=mode; catIdx=idx;
+  const isExp = mode==='exp';
+  document.getElementById('ctGroupWrap').style.display = isExp?'none':'';   // 지출은 변동/고정 구분 대신 지출구분을 사용
+  document.getElementById('ctMajorWrap').style.display = isExp?'':'none';
+  document.getElementById('ctTierWrap').style.display = isExp?'':'none';
+  const list = isExp?S.expenseCats:S.incomeCats;
+  const groups = [...new Set(list.map(c=>c.group))];
+  document.getElementById('groupList').innerHTML = groups.map(g=>`<option value="${esc(g)}">`).join('');
+  if(isExp){
+    const majors = [...new Set(S.expenseCats.map(c=>c.major).filter(Boolean))];
+    document.getElementById('majorList').innerHTML = majors.map(m=>`<option value="${esc(m)}">`).join('');
+  }
+  catDlgTitle.textContent = (isExp?'지출':'수입')+' 카테고리 '+(idx===null?'추가':'수정');
+  if(idx===null){ ctGroup.value = isExp?'변동':''; ctMajor.value=''; ctName.value=''; ctTier.value='선택'; }
+  else { const c=list[idx]; ctGroup.value=c.group||(isExp?'변동':''); ctMajor.value=c.major||''; ctName.value=c.name; ctTier.value=c.tier||'선택'; }
+  catDlg.showModal();
+}
+btnIncCatAdd.onclick=()=>openCatDlg('inc',null);
+btnExpCatAdd.onclick=()=>openCatDlg('exp',null);
+window.editCat=(m,i)=>openCatDlg(m,i);
+window.delCat=(m,i)=>{
+  const list = m==='exp'?S.expenseCats:S.incomeCats;
+  if(!confirm(`「${list[i].name}」 카테고리를 삭제할까요?\n(기존 거래 기록은 유지됩니다)`)) return;
+  list.splice(i,1); save(); renderCats(); renderMonFilters(); renderDash();
+};
+document.getElementById('catForm').onsubmit=()=>{
+  const rec = catMode==='exp'
+    ? {group:(ctGroup.value.trim()||'변동'), major:ctMajor.value.trim(), name:ctName.value.trim(), tier:ctTier.value}
+    : {group:ctGroup.value.trim(), name:ctName.value.trim()};
+  const list = catMode==='exp'?S.expenseCats:S.incomeCats;
+  if(catIdx===null) list.push(rec); else list[catIdx]=rec;
+  save(); renderCats(); renderMonFilters(); renderDash(); renderTx();
+};
+
+// ---------- render all ----------
+function renderAll(){ renderYearSel(); renderMonFilters(); renderDash(); renderTx(); renderAsset(); renderCats(); }
+renderAll();
+driveAutoStart();
+</script>
+</body>
+</html>
