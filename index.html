@@ -29,6 +29,11 @@ main{max-width:1200px;margin:0 auto;padding:20px 24px 60px}
 @media(max-width:800px){.grid2{grid-template-columns:1fr}}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
 @media(max-width:1000px){.grid3{grid-template-columns:1fr}}
+.txlayout{display:grid;grid-template-columns:240px 1fr 1.3fr;gap:12px;align-items:start;margin-bottom:12px}
+.txleft{display:flex;flex-direction:column;gap:12px}
+.txleft .card,.txleft .panel{margin-bottom:0}
+@media(max-width:1100px){.txlayout{grid-template-columns:1fr 1fr}.txlayout .panel:last-child{grid-column:1/-1}}
+@media(max-width:700px){.txlayout{grid-template-columns:1fr}.txlayout .panel:last-child{grid-column:auto}}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
 .panel h3{font-size:14px;margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .chartbox{position:relative;height:280px}
@@ -135,19 +140,23 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
 
 <section id="tab-tx" style="display:none">
   <div class="mtabs" id="monthTabs"></div>
-  <div class="cards">
-    <div class="card"><div class="t" id="tMIncome">월 수입</div><div class="v pos" id="mIncome"></div></div>
-    <div class="card"><div class="t" id="tMExpense">월 지출</div><div class="v neg" id="mExpense"></div></div>
-    <div class="card"><div class="t" id="tMNet">월 수입-지출</div><div class="v" id="mNet"></div></div>
-  </div>
-  <div class="grid2">
+  <div class="txlayout">
+    <div class="txleft">
+      <div class="card"><div class="t" id="tMIncome">월 수입</div><div class="v pos" id="mIncome"></div></div>
+      <div class="card"><div class="t" id="tMExpense">월 지출</div><div class="v neg" id="mExpense"></div></div>
+      <div class="card"><div class="t" id="tMNet">월 수입-지출</div><div class="v" id="mNet"></div></div>
+      <div class="panel">
+        <h3>전월 대비 당월 지출 추이</h3>
+        <div class="chartbox"><canvas id="chMoM"></canvas></div>
+      </div>
+    </div>
     <div class="panel">
       <h3>달력 <span class="sub" id="calMonthLabel" style="font-weight:400"></span></h3>
       <div id="calGrid" class="calgrid"></div>
     </div>
     <div class="panel">
-      <h3>전월 대비 당월 지출 추이</h3>
-      <div class="chartbox"><canvas id="chMoM"></canvas></div>
+      <h3>계정별 지출 상세 <span class="sub" id="txCatDetailLabel" style="font-weight:400"></span></h3>
+      <div style="overflow-x:auto;max-height:520px;overflow-y:auto"><table id="tblTxCat"></table></div>
     </div>
   </div>
   <div class="toolbar">
@@ -919,6 +928,55 @@ function renderMoMChart(){
   });
 }
 
+// ---------- 계정별 지출 상세 (월별) ----------
+function renderTxCatDetail(monthTxs){
+  const label = document.getElementById('txCatDetailLabel');
+  if(label) label.textContent = `${S.curYear}년 ${curMonth}월`;
+  const by={};
+  monthTxs.filter(t=>t.type==='지출').forEach(t=>{
+    const k=t.category||'기타'; if(!by[k]) by[k]={sum:0};
+    by[k].sum+=+t.amount||0;
+  });
+  const total = Object.values(by).reduce((a,x)=>a+x.sum,0)||1;
+  const tierStyle = {'필수':{bg:'#e0e7ff',fg:'#4338ca'}, '선택':{bg:'#dcfce7',fg:'#15803d'}, '비정기':{bg:'#fee2e2',fg:'#b91c1c'}};
+  const tree={};
+  Object.entries(by).forEach(([name,x])=>{
+    const tier = categoryTier(name), major = categoryMajor(name);
+    ((tree[tier]||(tree[tier]={}))[major]||(tree[tier][major]=[])).push([name,x]);
+  });
+  const tierOrder=['필수','선택','비정기'];
+  const tiers = [...tierOrder, ...Object.keys(tree).filter(t=>!tierOrder.includes(t))].filter(t=>tree[t]);
+  let h='<thead><tr><th>지출구분</th><th>분류</th><th>카테고리명</th><th class="num">금액</th><th class="num">비중</th></tr></thead><tbody>';
+  if(!Object.keys(by).length){
+    h += '<tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:20px">이번 달 지출 내역이 없습니다</td></tr>';
+  }
+  tiers.forEach(tier=>{
+    const majorEntries = Object.entries(tree[tier]);
+    const tierSum = majorEntries.reduce((a,[,list])=>a+list.reduce((s,[,x])=>s+x.sum,0),0);
+    const tierRows = majorEntries.reduce((a,[,list])=>a+list.length,0);
+    const st = tierStyle[tier]||{bg:'#f4f5f7',fg:'#374151'};
+    majorEntries.sort((a,b)=>b[1].reduce((s,[,x])=>s+x.sum,0)-a[1].reduce((s,[,x])=>s+x.sum,0));
+    let firstRowOfTier = true;
+    majorEntries.forEach(([major,list])=>{
+      const majorSum = list.reduce((a,[,x])=>a+x.sum,0);
+      list.sort((a,b)=>b[1].sum-a[1].sum);
+      list.forEach(([name,x],idx)=>{
+        h+='<tr>';
+        if(firstRowOfTier){
+          h+=`<td rowspan="${tierRows}" style="background:${st.bg};color:${st.fg};font-weight:700;vertical-align:top;white-space:normal">${esc(tier)}<div class="sub" style="font-weight:400;margin-top:4px;color:${st.fg}">합계 ${fmt(tierSum)}<br>${(tierSum/total*100).toFixed(1)}%</div></td>`;
+          firstRowOfTier=false;
+        }
+        if(idx===0){
+          h+=`<td rowspan="${list.length}" style="background:#fbfbff;font-weight:600;vertical-align:top;white-space:normal">${esc(major)}<div class="sub" style="font-weight:400;margin-top:4px">합계 ${fmt(majorSum)}<br>${(majorSum/total*100).toFixed(1)}%</div></td>`;
+        }
+        h+=`<td>${esc(name)}</td><td class="num">${fmt(x.sum)}</td><td class="num">${(x.sum/total*100).toFixed(1)}%</td>`;
+        h+='</tr>';
+      });
+    });
+  });
+  document.getElementById('tblTxCat').innerHTML = h+'</tbody>';
+}
+
 function renderTx(){
   EXCL = exclInc();
   mt.querySelectorAll('button').forEach(b=>b.classList.toggle('on', +b.dataset.m===curMonth));
@@ -931,6 +989,7 @@ function renderTx(){
   mNet.textContent=won(mi-mx); mNet.className='v '+(mi>=mx?'pos':'neg');
   renderCalendar(fullTxs, S.curYear, curMonth);
   renderMoMChart();
+  renderTxCatDetail(fullTxs);
   // 필터 옵션은 항상 이번 달 실제 데이터 기준으로 채워짐 (표의 계정·수단·계좌 칼럼과 그대로 대응)
   const cats=[...new Set(fullTxs.map(t=>t.category).filter(Boolean))].sort();
   const methods=[...new Set(fullTxs.map(t=>t.method).filter(Boolean))].sort();
