@@ -29,12 +29,19 @@ main{max-width:1200px;margin:0 auto;padding:20px 24px 60px}
 @media(max-width:800px){.grid2{grid-template-columns:1fr}}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
 @media(max-width:1000px){.grid3{grid-template-columns:1fr}}
-.txlayout{display:grid;grid-template-columns:1fr 1.6fr;gap:12px;align-items:start;margin-bottom:12px}
-.txmain{display:flex;flex-direction:column;gap:12px}
+.txlayout{display:grid;grid-template-columns:1fr 2.1fr;gap:12px;align-items:start;margin-bottom:12px}
+.txlayout>*{min-width:0}
+.txmain{display:flex;flex-direction:column;gap:12px;min-width:0}
+.txmain>*{min-width:0}
 .txmain .cards{display:grid;grid-template-columns:repeat(3,1fr)}
-.txmain .cards .v{font-size:17px}
-.txmain .cards .v{text-align:right}
-.calgrid .cal-day .di,.calgrid .cal-day .de{text-align:right}
+.txmain .cards .card{min-width:0}
+.txmain .cards .v{font-size:15px}
+.txmain .cards .v{text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.calgrid{min-width:0}
+.calgrid .cal-day{min-width:0}
+.calgrid .cal-day .di,.calgrid .cal-day .de{text-align:right;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#momMethodRow{grid-template-columns:0.85fr 1.15fr}
+#momMethodRow>*{min-width:0}
 #momPanel{display:flex;flex-direction:column;min-height:0}
 #momChartBox{flex:1;min-height:0;height:auto}
 .txmain .card,.txmain .panel{margin-bottom:0}
@@ -89,7 +96,7 @@ tr.addrow input,tr.addrow select{width:100%;font-size:12px;padding:5px 6px}
 .mtabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px}
 .calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
 .calgrid .cal-dow{text-align:center;font-size:11px;color:var(--sub);font-weight:600;padding:4px 0}
-.calgrid .cal-day{height:54px;border:1px solid var(--line);border-radius:8px;padding:4px 5px;font-size:11px;cursor:pointer;background:#fff}
+.calgrid .cal-day{height:54px;border:1px solid var(--line);border-radius:8px;padding:3px 3px;font-size:11px;cursor:pointer;background:#fff}
 .calgrid .cal-day.empty{border:none;background:none;cursor:default}
 .calgrid .cal-day.today{border-color:#4338ca;border-width:2px}
 .calgrid .cal-day.on{background:#eef2ff}
@@ -176,7 +183,7 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
         <h3>달력 <span class="sub" id="calMonthLabel" style="font-weight:400"></span></h3>
         <div id="calGrid" class="calgrid"></div>
       </div>
-      <div class="grid2" style="margin-bottom:0">
+      <div class="grid2" id="momMethodRow" style="margin-bottom:0">
         <div class="panel" id="momPanel">
           <h3>전월 대비 당월 지출 추이</h3>
           <div class="chartbox" id="momChartBox"><canvas id="chMoM"></canvas></div>
@@ -2725,17 +2732,33 @@ function renderBudgetPage(){
     st.style.color = '#15803d';
     setTimeout(()=>{ st.textContent=''; }, 4000);
   };
-  document.getElementById('btnBudgetAutoFill').onclick = ()=>{
-    if(!confirm('최근 3개월(실제 거래 기준) 평균 지출액으로 각 카테고리의 「기본 월예산」을 자동으로 채웁니다. 기존 값은 덮어써집니다. 계속할까요?')) return;
+  document.getElementById('btnBudgetAutoFill').onclick = async ()=>{
+    const btn = document.getElementById('btnBudgetAutoFill');
+    const origLabel = btn.textContent;
+    // 버그 원인: 거래내역이 Google Drive에만 있고 이 기기에는 아직 동기화되지 않은 상태에서 버튼을 누르면,
+    // 로컬의 빈/오래된 데이터를 기준으로 계산되어 아무것도 채워지지 않는 것처럼 보였음.
+    // → 연결돼 있으면 먼저 최신 데이터를 동기화한 뒤 계산하도록 수정.
+    if(driveConnected()){
+      btn.disabled = true; btn.textContent = '동기화 확인 중…';
+      try{ await drivePull(false); }catch(e){ /* 동기화 실패해도 로컬 데이터로 계속 진행 */ }
+      btn.disabled = false; btn.textContent = origLabel;
+    }
     const tx = allTx();
     const keys=[...new Set(tx.filter(t=>t.type==='지출').map(t=>t.year+'-'+t.month))]
       .map(k=>{ const [y,m]=k.split('-').map(Number); return {y,m}; })
       .sort((a,b)=>a.y-b.y||a.m-b.m).slice(-3);
+    if(!keys.length){
+      alert('최근 3개월간 지출 거래내역을 찾을 수 없습니다.\n\n· Google Drive와 동기화가 완료됐는지 화면 위쪽 "Google Drive 연결" 상태를 확인해주세요.\n· 거래내역 페이지에 실제로 지출이 입력되어 있는지도 확인해주세요.');
+      return;
+    }
+    if(!confirm(`최근 ${keys.length}개월(${keys.map(k=>k.y+'.'+k.m).join(', ')}) 실제 거래 기준 평균 지출액으로 각 카테고리의 「기본 월예산」을 채웁니다.\n해당 기간에 지출 내역이 있는 카테고리만 갱신되고, 지출이 없던 카테고리의 기존 예산 값은 그대로 유지됩니다. 계속할까요?`)) return;
+    let updated=0;
     budgetCatList().forEach(r=>{
       const sum = keys.reduce((s,k)=> s + tx.filter(t=>t.type==='지출' && t.year===k.y && t.month===k.m && (t.category||'기타')===r.name).reduce((a,t)=>a+(+t.amount||0),0), 0);
-      S.budgets[r.name] = keys.length ? Math.round(sum/keys.length) : 0;
+      if(sum>0){ S.budgets[r.name] = Math.round(sum/keys.length); updated++; }
     });
     save(); renderBudgetTable();
+    alert(updated ? `${updated}개 카테고리의 기본 예산을 자동으로 채웠습니다.` : '최근 3개월간 지출이 있는 카테고리를 찾지 못했습니다. 거래내역을 확인해주세요.');
   };
   document.getElementById('btnBudgetResetMonth').onclick = ()=>{
     const s = document.getElementById('budgetMonthSel');
