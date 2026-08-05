@@ -29,23 +29,23 @@ main{max-width:1200px;margin:0 auto;padding:20px 24px 60px}
 @media(max-width:800px){.grid2{grid-template-columns:1fr}}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
 @media(max-width:1000px){.grid3{grid-template-columns:1fr}}
-.txlayout{display:grid;grid-template-columns:1fr 2.1fr;gap:12px;align-items:start;margin-bottom:12px}
+.txlayout{display:grid;grid-template-columns:1fr 1.75fr;gap:12px;align-items:start;margin-bottom:12px}
 .txlayout>*{min-width:0}
 .txmain{display:flex;flex-direction:column;gap:12px;min-width:0}
 .txmain>*{min-width:0}
 .txmain .cards{display:grid;grid-template-columns:repeat(3,1fr)}
 .txmain .cards .card{min-width:0}
 .txmain .cards .v{font-size:15px}
-.txmain .cards .v{text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.txmain .cards .v{text-align:right;white-space:nowrap}
 .calgrid{min-width:0}
 .calgrid .cal-day{min-width:0}
-.calgrid .cal-day .di,.calgrid .cal-day .de{text-align:right;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#momMethodRow{grid-template-columns:0.85fr 1.15fr}
+.calgrid .cal-day .di,.calgrid .cal-day .de{text-align:right;font-size:10px;white-space:nowrap}
+#momMethodRow{grid-template-columns:0.9fr 1.1fr}
 #momMethodRow>*{min-width:0}
 #momPanel{display:flex;flex-direction:column;min-height:0}
 #momChartBox{flex:1;min-height:0;height:auto}
 .txmain .card,.txmain .panel{margin-bottom:0}
-#tblMethodSum td,#tblMethodSum th{padding:4px 8px;white-space:nowrap}
+#tblMethodSum td,#tblMethodSum th{padding:4px 6px;white-space:nowrap}
 @media(max-width:900px){.txlayout{grid-template-columns:1fr}}
 .txlayout>.panel:last-child{display:flex;flex-direction:column;min-height:0}
 .txlayout>.panel:last-child>div:last-child{flex:1;min-height:0;overflow-y:auto}
@@ -1490,11 +1490,11 @@ function renderTxCatDetail(monthTxs){
       list.forEach(([name,x],idx)=>{
         h+='<tr>';
         if(firstRowOfTier){
-          h+=`<td rowspan="${tierRows}" style="background:${st.bg};color:${st.fg};font-weight:700;vertical-align:top;white-space:nowrap"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:6px"><span>${esc(tier)}</span><span style="font-weight:400">${(tierSum/total*100).toFixed(1)}%</span></div><div class="sub" style="font-weight:400;margin-top:4px;color:${st.fg}">${fmt(tierSum)}</div></td>`;
+          h+=`<td rowspan="${tierRows}" style="background:${st.bg};color:${st.fg};font-weight:700;vertical-align:top;white-space:nowrap">${esc(tier)}<div class="sub" style="font-weight:400;margin-top:4px;color:${st.fg}">${fmt(tierSum)}</div><div class="sub" style="font-weight:400;color:${st.fg}">${(tierSum/total*100).toFixed(1)}%</div></td>`;
           firstRowOfTier=false;
         }
         if(idx===0){
-          h+=`<td rowspan="${list.length}" style="background:#fbfbff;font-weight:600;vertical-align:top;white-space:nowrap"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:6px"><span>${esc(major)}</span><span style="font-weight:400">${(majorSum/total*100).toFixed(1)}%</span></div><div class="sub" style="font-weight:400;margin-top:4px">${fmt(majorSum)}</div></td>`;
+          h+=`<td rowspan="${list.length}" style="background:#fbfbff;font-weight:600;vertical-align:top;white-space:nowrap">${esc(major)}<div class="sub" style="font-weight:400;margin-top:4px">${fmt(majorSum)}</div><div class="sub" style="font-weight:400">${(majorSum/total*100).toFixed(1)}%</div></td>`;
         }
         const budget = getBudget(name, S.curYear, curMonth);
         const remain = budget - x.sum;
