@@ -2725,17 +2725,33 @@ function renderBudgetPage(){
     st.style.color = '#15803d';
     setTimeout(()=>{ st.textContent=''; }, 4000);
   };
-  document.getElementById('btnBudgetAutoFill').onclick = ()=>{
-    if(!confirm('최근 3개월(실제 거래 기준) 평균 지출액으로 각 카테고리의 「기본 월예산」을 자동으로 채웁니다. 기존 값은 덮어써집니다. 계속할까요?')) return;
+  document.getElementById('btnBudgetAutoFill').onclick = async ()=>{
+    const btn = document.getElementById('btnBudgetAutoFill');
+    const origLabel = btn.textContent;
+    if(driveConnected()){
+      btn.disabled = true; btn.textContent = '동기화 확인 중…';
+      try{ await drivePull(false); }catch(e){ /* 동기화 실패해도 로컬 데이터로 계속 진행 */ }
+      btn.disabled = false; btn.textContent = origLabel;
+    }
+    const s = document.getElementById('budgetMonthSel');
+    const [selY, selM] = s.value.split('-').map(Number);
+    // 버그 수정: 전체 거래내역 중 "데이터가 있는 최근 3개월"을 찾던 방식이라, 미래에 입력된 거래(예: 예정된 지출)가 있으면
+    // 그 미래 달이 포함되는 문제가 있었음. → 반드시 "선택된 예산 달(예: 8월) 바로 직전 3개월(5,6,7월)"만 고정으로 사용하도록 수정.
+    const keys = [];
+    for(let i=3;i>=1;i--){
+      let m = selM - i, y = selY;
+      while(m<=0){ m+=12; y-=1; }
+      keys.push({y,m});
+    }
     const tx = allTx();
-    const keys=[...new Set(tx.filter(t=>t.type==='지출').map(t=>t.year+'-'+t.month))]
-      .map(k=>{ const [y,m]=k.split('-').map(Number); return {y,m}; })
-      .sort((a,b)=>a.y-b.y||a.m-b.m).slice(-3);
+    if(!confirm(`${selY}년 ${selM}월 예산을 직전 3개월(${keys.map(k=>k.y+'.'+k.m).join(', ')}) 실제 거래 기준 평균 지출액으로 채웁니다.\n해당 기간에 지출 내역이 있는 카테고리만 갱신되고, 지출이 없던 카테고리의 기존 예산 값은 그대로 유지됩니다. 계속할까요?`)) return;
+    let updated=0;
     budgetCatList().forEach(r=>{
       const sum = keys.reduce((s,k)=> s + tx.filter(t=>t.type==='지출' && t.year===k.y && t.month===k.m && (t.category||'기타')===r.name).reduce((a,t)=>a+(+t.amount||0),0), 0);
-      S.budgets[r.name] = keys.length ? Math.round(sum/keys.length) : 0;
+      if(sum>0){ S.budgets[r.name] = Math.round(sum/keys.length); updated++; }
     });
     save(); renderBudgetTable();
+    alert(updated ? `${updated}개 카테고리의 기본 예산을 ${keys.map(k=>k.y+'.'+k.m).join(', ')} 평균으로 채웠습니다.` : `${keys.map(k=>k.y+'.'+k.m).join(', ')} 기간에 지출 내역을 찾지 못했습니다.`);
   };
   document.getElementById('btnBudgetResetMonth').onclick = ()=>{
     const s = document.getElementById('budgetMonthSel');
