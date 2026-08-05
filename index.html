@@ -1372,11 +1372,17 @@ function renderCalendar(monthTxs, year, month){
     const info = byDay[d];
     const isToday = today.getFullYear()===year && today.getMonth()+1===month && today.getDate()===d;
     const isSelected = fDay.value === String(d);
-    html += `<div class="cal-day${isToday?' today':''}${isSelected?' on':''}" onclick="selectCalDay(${d})">
-      <div class="dnum">${d}</div>
-      ${info&&info.inc?`<div class="di">${info.inc>=0?'+':''}${fmt(info.inc)}</div>`:''}
-      ${info&&info.exp?`<div class="de">${info.exp>=0?'-':''}${fmt(info.exp)}</div>`:''}
-    </div>`;
+   html += `<div class="cal-day${isToday?' today':''}${isSelected?' on':''}" onclick="selectCalDay(${d})">
+  <div class="dnum">${d}</div>
+
+  <div class="di">
+    ${info && info.inc ? `${info.inc >= 0 ? '+' : ''}${fmt(info.inc)}` : '&nbsp;'}
+  </div>
+
+  <div class="de">
+    ${info && info.exp ? `${info.exp >= 0 ? '-' : ''}${fmt(info.exp)}` : '&nbsp;'}
+  </div>
+</div>`;
   }
   calGrid.innerHTML = html;
 }
