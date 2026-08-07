@@ -81,9 +81,16 @@ tr.cardrow{background:#fbfbff}
 .pos{color:var(--green)}.neg{color:var(--red)}
 tr.addrow td{background:#f8fafc;padding:5px 6px}
 tr.addrow input,tr.addrow select{width:100%;font-size:12px;padding:5px 6px}
-#txTable{border-collapse:separate;border-spacing:0}
-#txTable th:nth-child(5),#txTable td:nth-child(5){width:100%;white-space:normal;word-break:break-word}
-#txTable th:not(:nth-child(5)),#txTable td:not(:nth-child(5)){width:1%}
+#txTable{border-collapse:separate;border-spacing:0;table-layout:fixed;width:100%}
+#txTable th:nth-child(1),#txTable td:nth-child(1){width:9%}
+#txTable th:nth-child(2),#txTable td:nth-child(2){width:7%}
+#txTable th:nth-child(3),#txTable td:nth-child(3){width:9%}
+#txTable th:nth-child(4),#txTable td:nth-child(4){width:9%}
+#txTable th:nth-child(5),#txTable td:nth-child(5){width:20%;white-space:normal;word-break:break-word}
+#txTable th:nth-child(6),#txTable td:nth-child(6){width:9%}
+#txTable th:nth-child(7),#txTable td:nth-child(7){width:7%}
+#txTable th:nth-child(8),#txTable td:nth-child(8){width:12%;white-space:normal;word-break:break-word}
+#txTable th:nth-child(9),#txTable td:nth-child(9){width:18%}
 #txTable thead th{background:#fafbfc;border-bottom:2px solid var(--line);text-align:center}
 #txTable tr.cardrow td{border-top:0px solid #93a5fd;border-bottom:1px solid #93a5fd;background:#fff}
 #txTable tbody td{background:#fff}
@@ -213,6 +220,10 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
   </div>
   <div class="panel" style="overflow-x:auto">
     <table id="txTable">
+      <colgroup>
+        <col style="width:9%"><col style="width:7%"><col style="width:9%"><col style="width:9%">
+        <col style="width:24%"><col style="width:9%"><col style="width:8%"><col style="width:14%"><col style="width:11%">
+      </colgroup>
       <thead><tr><th>날짜</th><th>구분</th><th>계정</th><th class="num">금액</th><th>상세 내역</th><th>수단</th><th>계좌</th><th>비고</th><th></th></tr></thead>
       <tbody id="txBody"></tbody>
     </table>
@@ -567,12 +578,12 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
       <div><label>계정</label><select id="inCat"></select></div>
       <div><label>금액</label><input type="text" inputmode="numeric" class="amt-input amt-signed" id="inAmount" placeholder="0 (마이너스 입력 가능)" required></div>
     </div>
-    <div><label>상세 내역</label><input type="text" id="inDetail"></div>
+    <div><label>상세 내역</label><input type="text" id="inDetail" list="inDetailList" autocomplete="off"><datalist id="inDetailList"></datalist></div>
     <div class="row">
       <div><label id="lblMethod">수단 / 출금처</label><select id="inMethod"></select></div>
       <div><label id="lblAccount">계좌 / 입금처</label><select id="inAccount"></select></div>
     </div>
-    <div><label>비고</label><input type="text" id="inMemo"></div>
+    <div><label>비고</label><input type="text" id="inMemo" list="inMemoList" autocomplete="off"><datalist id="inMemoList"></datalist></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
       <button class="btn" type="button" onclick="dlg.close()">취소</button>
       <button class="btn primary" value="ok">저장</button>
@@ -1564,7 +1575,7 @@ function renderTx(){
       <input type="text" inputmode="numeric" class="amt-input cardov" data-card="${esc(t.cardName)}" data-y="${t.year}" data-m="${t.month}"
         value="${t.manualSet?fmt(t.amount):''}" placeholder="자동 ${fmt(t.autoAmount)}">
     </td>
-    <td style="white-space:normal">${esc(t.detail)}</td>
+    <td style="white-space:normal"><span style="display:inline-block;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${esc(t.detail)}">${esc(t.detail)}</span></td>
     <td>${esc(t.method)}</td>
     <td>${esc(t.account)}</td>
     <td style="white-space:normal">${esc(t.memo)}</td>
@@ -1575,7 +1586,7 @@ function renderTx(){
     <td><span class="tag ${t.type}">${t.type||''}</span></td>
     <td>${esc(t.category)||(t.type==='계좌이동'?'이동':'')}</td>
     <td class="num ${t.type==='수입'?'pos':t.type==='지출'?'neg':''}">${fmt(t.amount)}</td>
-    <td style="white-space:normal">${esc(t.detail)}</td>
+    <td style="white-space:normal"><span style="display:inline-block;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${esc(t.detail)}">${esc(t.detail)}</span></td>
     <td>${esc(t.method)}</td>
     <td>${esc(t.account)}</td>
     <td style="white-space:normal">${esc(t.memo)}</td>
@@ -1685,13 +1696,19 @@ function qkRowHTML(){
   const ekd='if(event.key===\'Enter\'){event.preventDefault();qkAdd();}';
   return `<tr class="addrow" id="txAddRow">
     <td><input type="date" id="qkDate" onkeydown="${ekd}"></td>
-    <td><select id="qkType" onchange="qkTypeChange()"><option>지출</option><option>수입</option><option>계좌이동</option></select></td>
-    <td><select id="qkCat" onchange="qkState.category=this.value"></select></td>
+    <td><input type="text" id="qkType" list="qkTypeList" autocomplete="off" placeholder="구분" oninput="qkTypeChange()">
+      <datalist id="qkTypeList"><option value="지출"><option value="수입"><option value="계좌이동"></datalist></td>
+    <td><input type="text" id="qkCat" list="qkCatList" autocomplete="off" placeholder="계정" oninput="qkState.category=this.value">
+      <datalist id="qkCatList"></datalist></td>
     <td class="num"><input type="text" inputmode="numeric" class="amt-input amt-signed" id="qkAmount" placeholder="금액(-가능)" style="text-align:right" onkeydown="${ekd}"></td>
-    <td><input type="text" id="qkDetail" placeholder="상세 내역" onkeydown="${ekd}"></td>
-    <td><select id="qkMethod" onchange="qkMethodChange()"></select></td>
-    <td><select id="qkAccount" onchange="qkState.account=this.value"></select></td>
-    <td><input type="text" id="qkMemo" placeholder="비고" onkeydown="${ekd}"></td>
+    <td><input type="text" id="qkDetail" list="qkDetailList" placeholder="상세 내역" autocomplete="off" onkeydown="${ekd}">
+      <datalist id="qkDetailList"></datalist></td>
+    <td><input type="text" id="qkMethod" list="qkMethodList" autocomplete="off" placeholder="수단" oninput="qkMethodChange()">
+      <datalist id="qkMethodList"></datalist></td>
+    <td><input type="text" id="qkAccount" list="qkAccountList" autocomplete="off" placeholder="계좌" oninput="qkState.account=this.value">
+      <datalist id="qkAccountList"></datalist></td>
+    <td><input type="text" id="qkMemo" list="qkMemoList" placeholder="비고" autocomplete="off" onkeydown="${ekd}">
+      <datalist id="qkMemoList"></datalist></td>
     <td><button type="button" class="btn sm primary" onclick="qkAdd()">＋ 추가</button></td>
   </tr>`;
 }
@@ -1713,13 +1730,35 @@ function qkRenderRow(){
         qkMethod=document.getElementById('qkMethod'), qkAccount=document.getElementById('qkAccount');
   if(!qkType) return;
   qkType.value = qkState.type;
-  if(qkState.type==='계좌이동'){ qkCat.innerHTML='<option value="">-</option>'; qkCat.disabled=true; }
-  else { qkCat.disabled=false; qkCat.innerHTML = qkOptsCat().map(o=>`<option${o===qkState.category?' selected':''}>${esc(o)}</option>`).join(''); if(!qkState.category) qkState.category=qkCat.value; }
-  qkMethod.innerHTML = qkOptsMethod().map(m=>`<option${m===qkState.method?' selected':''}>${esc(m)}</option>`).join('');
-  if(!qkState.method) qkState.method = qkMethod.value;
-  qkAccount.innerHTML = '<option value=""></option>'+qkOptsAccount().map(a=>`<option${a===qkState.account?' selected':''}>${esc(a)}</option>`).join('');
+  const catList = document.getElementById('qkCatList');
+  if(qkState.type==='계좌이동'){ catList.innerHTML=''; qkCat.value=''; qkCat.disabled=true; }
+  else {
+    qkCat.disabled=false;
+    const opts = qkOptsCat();
+    catList.innerHTML = opts.map(o=>`<option value="${esc(o)}">`).join('');
+    if(!qkState.category) qkState.category = opts[0]||'';
+    qkCat.value = qkState.category;
+  }
+  const methodOpts = qkOptsMethod();
+  document.getElementById('qkMethodList').innerHTML = methodOpts.map(m=>`<option value="${esc(m)}">`).join('');
+  if(!qkState.method) qkState.method = methodOpts[0]||'';
+  qkMethod.value = qkState.method;
+  const acctOpts = qkOptsAccount();
+  document.getElementById('qkAccountList').innerHTML = acctOpts.map(a=>`<option value="${esc(a)}">`).join('');
+  qkAccount.value = qkState.account;
+  const seenDetail=[], seenMemo=[];
+  allTx().forEach(t=>{
+    if(t.detail && !seenDetail.includes(t.detail)) seenDetail.push(t.detail);
+    if(t.memo && !seenMemo.includes(t.memo)) seenMemo.push(t.memo);
+  });
+  document.getElementById('qkDetailList').innerHTML = seenDetail.slice(0,300).map(d=>`<option value="${esc(d)}">`).join('');
+  document.getElementById('qkMemoList').innerHTML = seenMemo.slice(0,300).map(d=>`<option value="${esc(d)}">`).join('');
 }
-window.qkTypeChange = ()=>{ qkState.type=document.getElementById('qkType').value; qkState.category=''; qkState.method=''; qkState.account=''; qkRenderRow(); };
+window.qkTypeChange = ()=>{
+  const v = document.getElementById('qkType').value;
+  if(!['지출','수입','계좌이동'].includes(v)) return; // 유효한 구분을 입력/선택했을 때만 하위 목록을 갱신
+  qkState.type=v; qkState.category=''; qkState.method=''; qkState.account=''; qkRenderRow();
+};
 window.qkMethodChange = ()=>{ qkState.method=document.getElementById('qkMethod').value; qkState.account=''; qkRenderRow(); };
 window.qkAdd = ()=>{
   const dEl=document.getElementById('qkDate');
@@ -1761,6 +1800,13 @@ function fillForm(t){
   refreshAccountOptions();
   if(t?.account) inAccount.value=t.account;
   inMemo.value = t?.memo||'';
+  const seenDetail=[], seenMemo=[];
+  allTx().forEach(tx=>{
+    if(tx.detail && !seenDetail.includes(tx.detail)) seenDetail.push(tx.detail);
+    if(tx.memo && !seenMemo.includes(tx.memo)) seenMemo.push(tx.memo);
+  });
+  document.getElementById('inDetailList').innerHTML = seenDetail.slice(0,300).map(d=>`<option value="${esc(d)}">`).join('');
+  document.getElementById('inMemoList').innerHTML = seenMemo.slice(0,300).map(d=>`<option value="${esc(d)}">`).join('');
 }
 function refreshCatOptions(){
   const t = inType.value;
