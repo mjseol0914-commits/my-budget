@@ -1595,7 +1595,7 @@ function renderTx(){
     <td>${esc(t.account)}</td>
     <td style="white-space:normal">${esc(t.memo)}</td>
     <td><button type="button" class="btn sm primary" onclick="applyCardOverride(this)">적용</button>
-        ${t.manualSet?'<button type="button" class="btn sm danger" onclick="clearCardOverride(this)">자동</button>':''}</td>
+        ${t.manualSet?'<button type="button" class="btn sm danger" onclick="clearCardOverride(this)">자동으로</button>':''}</td>
   </tr>` : `<tr class="${t._edited?'edited':''}">
     <td>${t.month}/${t.day??''} (${t.weekday||''})</td>
     <td><span class="tag ${t.type}">${t.type||''}</span></td>
@@ -1711,17 +1711,13 @@ function qkRowHTML(){
   const ekd='if(event.key===\'Enter\'){event.preventDefault();qkAdd();}';
   return `<tr class="addrow" id="txAddRow">
     <td><input type="date" id="qkDate" onkeydown="${ekd}"></td>
-    <td><input type="text" id="qkType" list="qkTypeList" autocomplete="off" placeholder="구분" oninput="qkTypeChange()">
-      <datalist id="qkTypeList"><option value="지출"><option value="수입"><option value="계좌이동"></datalist></td>
-    <td><input type="text" id="qkCat" list="qkCatList" autocomplete="off" placeholder="계정" oninput="qkState.category=this.value">
-      <datalist id="qkCatList"></datalist></td>
+    <td><select id="qkType" onchange="qkTypeChange()"><option>지출</option><option>수입</option><option>계좌이동</option></select></td>
+    <td><select id="qkCat" onchange="qkState.category=this.value"></select></td>
     <td class="num"><input type="text" inputmode="numeric" class="amt-input amt-signed" id="qkAmount" placeholder="금액(-가능)" style="text-align:right" onkeydown="${ekd}"></td>
     <td><input type="text" id="qkDetail" list="qkDetailList" placeholder="상세 내역" autocomplete="off" onkeydown="${ekd}">
       <datalist id="qkDetailList"></datalist></td>
-    <td><input type="text" id="qkMethod" list="qkMethodList" autocomplete="off" placeholder="수단" oninput="qkMethodChange()">
-      <datalist id="qkMethodList"></datalist></td>
-    <td><input type="text" id="qkAccount" list="qkAccountList" autocomplete="off" placeholder="계좌" oninput="qkState.account=this.value">
-      <datalist id="qkAccountList"></datalist></td>
+    <td><select id="qkMethod" onchange="qkMethodChange()"></select></td>
+    <td><select id="qkAccount" onchange="qkState.account=this.value"></select></td>
     <td><input type="text" id="qkMemo" list="qkMemoList" placeholder="비고" autocomplete="off" onkeydown="${ekd}">
       <datalist id="qkMemoList"></datalist></td>
     <td><button type="button" class="btn sm primary" onclick="qkAdd()">＋ 추가</button></td>
@@ -1745,21 +1741,21 @@ function qkRenderRow(){
         qkMethod=document.getElementById('qkMethod'), qkAccount=document.getElementById('qkAccount');
   if(!qkType) return;
   qkType.value = qkState.type;
-  const catList = document.getElementById('qkCatList');
-  if(qkState.type==='계좌이동'){ catList.innerHTML=''; qkCat.value=''; qkCat.disabled=true; }
+  if(qkState.type==='계좌이동'){ qkCat.innerHTML='<option value="">-</option>'; qkState.category=''; qkCat.disabled=true; }
   else {
     qkCat.disabled=false;
     const opts = qkOptsCat();
-    catList.innerHTML = opts.map(o=>`<option value="${esc(o)}">`).join('');
-    if(!qkState.category) qkState.category = opts[0]||'';
+    qkCat.innerHTML = opts.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join('');
+    if(!qkState.category || !opts.includes(qkState.category)) qkState.category = opts[0]||'';
     qkCat.value = qkState.category;
   }
   const methodOpts = qkOptsMethod();
-  document.getElementById('qkMethodList').innerHTML = methodOpts.map(m=>`<option value="${esc(m)}">`).join('');
-  if(!qkState.method) qkState.method = methodOpts[0]||'';
+  qkMethod.innerHTML = methodOpts.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
+  if(!qkState.method || !methodOpts.includes(qkState.method)) qkState.method = methodOpts[0]||'';
   qkMethod.value = qkState.method;
   const acctOpts = qkOptsAccount();
-  document.getElementById('qkAccountList').innerHTML = acctOpts.map(a=>`<option value="${esc(a)}">`).join('');
+  qkAccount.innerHTML = acctOpts.map(a=>`<option value="${esc(a)}">${esc(a)}</option>`).join('');
+  if(!qkState.account || !acctOpts.includes(qkState.account)) qkState.account = acctOpts[0]||'';
   qkAccount.value = qkState.account;
   const seenDetail=[], seenMemo=[];
   allTx().forEach(t=>{
@@ -1770,9 +1766,7 @@ function qkRenderRow(){
   document.getElementById('qkMemoList').innerHTML = seenMemo.slice(0,300).map(d=>`<option value="${esc(d)}">`).join('');
 }
 window.qkTypeChange = ()=>{
-  const v = document.getElementById('qkType').value;
-  if(!['지출','수입','계좌이동'].includes(v)) return; // 유효한 구분을 입력/선택했을 때만 하위 목록을 갱신
-  qkState.type=v; qkState.category=''; qkState.method=''; qkState.account=''; qkRenderRow();
+  qkState.type=document.getElementById('qkType').value; qkState.category=''; qkState.method=''; qkState.account=''; qkRenderRow();
 };
 window.qkMethodChange = ()=>{ qkState.method=document.getElementById('qkMethod').value; qkState.account=''; qkRenderRow(); };
 window.qkAdd = ()=>{
@@ -1901,7 +1895,7 @@ function saveCardOverride(input){
 }
 window.applyCardOverride = btn=>{
   const input = btn.closest('tr').querySelector('.cardov');
-  if(!input.value.trim()){ alert('반영할 금액을 입력한 뒤 [적용]을 눌러주세요. 자동계산으로 되돌리려면 [자동] 버튼을 사용하세요.'); return; }
+  if(!input.value.trim()){ alert('반영할 금액을 입력한 뒤 [적용]을 눌러주세요. 자동계산으로 되돌리려면 [자동으로] 버튼을 사용하세요.'); return; }
   saveCardOverride(input);
 };
 window.clearCardOverride = btn=>{
