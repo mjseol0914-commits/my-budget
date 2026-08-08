@@ -1580,7 +1580,7 @@ function renderTx(){
     <td>${esc(t.account)}</td>
     <td style="white-space:normal">${esc(t.memo)}</td>
     <td><button type="button" class="btn sm primary" onclick="applyCardOverride(this)">적용</button>
-        ${t.manualSet?'<button type="button" class="btn sm danger" onclick="clearCardOverride(this)">자동으로</button>':''}</td>
+        ${t.manualSet?'<button type="button" class="btn sm danger" onclick="clearCardOverride(this)">자동</button>':''}</td>
   </tr>` : `<tr class="${t._edited?'edited':''}">
     <td>${t.month}/${t.day??''} (${t.weekday||''})</td>
     <td><span class="tag ${t.type}">${t.type||''}</span></td>
