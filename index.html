@@ -253,6 +253,7 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
   </div>
   <div class="panel">
     <h3>계좌별 거래내역 <select id="acctLedgerSel" style="margin-left:8px"></select></h3>
+    <div class="mtabs" id="acctLedgerTabs"></div>
     <div style="overflow-x:auto;max-height:420px;overflow-y:auto"><table id="tblAcctLedger"></table></div>
     <div class="note" id="acctLedgerNote"></div>
   </div>
@@ -883,11 +884,22 @@ function accountCardDelta(name){
     return (dt>base && dt<=today) ? s+t.effect : s;
   },0);
 }
+// 계좌별 거래내역 보기: 'base' = 기준일 이후(기존 방식), 1~12 = 선택 연도(S.curYear)의 해당 월
+let LEDGER_M = 'base';
+function renderAcctLedgerTabs(){
+  const el = document.getElementById('acctLedgerTabs');
+  if(!el) return;
+  el.innerHTML = `<button data-m="base"${LEDGER_M==='base'?' class="on"':''}>기준일 이후</button>`
+    + Array.from({length:12},(_,i)=>`<button data-m="${i+1}"${LEDGER_M===i+1?' class="on"':''}>${i+1}월</button>`).join('');
+  el.querySelectorAll('button').forEach(b=> b.onclick = ()=>{ LEDGER_M = b.dataset.m==='base' ? 'base' : +b.dataset.m; renderAcctLedger(); });
+}
 function renderAcctLedger(){
-  if(!S.accounts.length){ acctLedgerSel.innerHTML=''; tblAcctLedger.innerHTML=''; acctLedgerNote.textContent=''; return; }
+  if(!S.accounts.length){ acctLedgerSel.innerHTML=''; tblAcctLedger.innerHTML=''; acctLedgerNote.textContent=''; const tb=document.getElementById('acctLedgerTabs'); if(tb) tb.innerHTML=''; return; }
   const names = S.accounts.map(a=>a.name);
   const cur = names.includes(acctLedgerSel.value) ? acctLedgerSel.value : names[0];
   acctLedgerSel.innerHTML = names.map(n=>`<option${n===cur?' selected':''}>${esc(n)}</option>`).join('');
+  renderAcctLedgerTabs();
+  if(LEDGER_M!=='base'){ renderAcctLedgerMonth(cur, S.curYear, LEDGER_M); return; }
   const snapAcc = S.accounts.find(a=>a.name===cur);
   const baseVal = snapAcc ? ((snapAcc.balance===null||snapAcc.balance===undefined||snapAcc.balance==='')?(+snapAcc.init||0):+snapAcc.balance) : 0;
   const base = new Date(S.baseDate+'T00:00:00'); base.setHours(0,0,0,0);
@@ -910,6 +922,50 @@ function renderAcctLedger(){
   });
   document.getElementById('tblAcctLedger').innerHTML = h+'</tbody>';
   acctLedgerNote.textContent = `반영 완료 기준 현재 잔액: ${won(running)} · 흐리게 표시된 행은 기준일 이후 예정(미완료) 항목입니다. 수입/체크카드·현금 지출/계좌이동/카드값출금이 모두 잔액에 반영됩니다.`;
+}
+// 월별 보기: 기준일 스냅샷 잔액을 기준으로 이전 거래는 거꾸로 빼고(역산), 이후 거래는 더해서 각 행의 잔액을 계산
+function renderAcctLedgerMonth(cur, Y, M){
+  const snapAcc = S.accounts.find(a=>a.name===cur);
+  const baseVal = snapAcc ? ((snapAcc.balance===null||snapAcc.balance===undefined||snapAcc.balance==='')?(+snapAcc.init||0):+snapAcc.balance) : 0;
+  const base = new Date(S.baseDate+'T00:00:00'); base.setHours(0,0,0,0);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dOf = t=>new Date(t.year, t.month-1, t.day||1);
+  const all = accountTx(cur);
+  const baseOk = !isNaN(base.getTime());
+  // 기준일 당일까지의 거래는 스냅샷에 이미 포함된 것으로 봄 → 반영(counted)
+  const isCounted = dt => (baseOk && dt<=base) || dt<=today;
+  const preSum = baseOk ? all.reduce((s,t)=> dOf(t)<=base ? s+t.effect : s, 0) : 0;
+  const mStart = new Date(Y, M-1, 1), mEnd = new Date(Y, M, 0);
+  let running = baseVal - preSum;
+  all.forEach(t=>{ const dt=dOf(t); if(dt<mStart && isCounted(dt)) running += t.effect; });
+  const opening = running;
+  const rows = all.filter(t=>{ const dt=dOf(t); return dt>=mStart && dt<=mEnd; });
+  const baseInMonth = baseOk && base>=mStart && base<=mEnd;
+  const baseRow = () => `<tr style="background:#eef2ff"><td>${S.baseDate.replace(/-0?/g,'.')}</td><td colspan="3">기준일 스냅샷 잔액 (입력값)</td><td class="num ${baseVal>=0?'pos':'neg'}" style="font-weight:600">${fmt(baseVal)}</td></tr>`;
+  let inSum=0, outSum=0, baseShown=false;
+  let h = `<thead><tr><th>날짜</th><th>구분</th><th>내용</th><th class="num">금액</th><th class="num">반영 후 잔액</th></tr></thead><tbody>`;
+  h += `<tr style="background:#f9fafb"><td colspan="4">${M}월 월초 잔액 (전월 이월)</td><td class="num ${opening>=0?'pos':'neg'}">${fmt(opening)}</td></tr>`;
+  rows.forEach(t=>{
+    const dt = dOf(t);
+    if(baseInMonth && !baseShown && dt>base){ h += baseRow(); baseShown=true; }
+    const counted = isCounted(dt);
+    const pre = baseOk && dt<=base;
+    if(counted){ running += t.effect; if(t.effect>=0) inSum+=t.effect; else outSum+=t.effect; }
+    h += `<tr${counted?'':' style="opacity:.5"'}>
+      <td>${t.year}.${t.month}.${t.day??''}</td>
+      <td>${esc(t.role)}${t._cardVirtual?` <span class="tag ${t.status}">${t.status}</span>`:''}</td>
+      <td style="white-space:normal">${esc(t.detail||t.category||'')}</td>
+      <td class="num ${t.effect>=0?'pos':'neg'}">${t.effect>=0?'+':''}${fmt(t.effect)}</td>
+      <td class="num ${counted?(running>=0?'pos':'neg'):''}" style="font-weight:600${pre?';font-style:italic':''}"${pre?' title="기준일 이전 — 스냅샷에서 역산한 잔액"':''}>${counted?fmt(running):'예정'}</td>
+    </tr>`;
+  });
+  if(baseInMonth && !baseShown) h += baseRow();
+  if(!rows.length) h += `<tr><td colspan="5" style="text-align:center;color:var(--sub)">${Y}년 ${M}월 거래가 없습니다.</td></tr>`;
+  h += `<tr style="font-weight:700;border-top:2px solid var(--line);background:#fafbfc"><td colspan="2">${M}월 합계</td>
+    <td class="num pos">입금 +${fmt(inSum)}</td><td class="num neg">출금 ${fmt(outSum)}</td>
+    <td class="num ${running>=0?'pos':'neg'}">월말 ${fmt(running)}</td></tr>`;
+  document.getElementById('tblAcctLedger').innerHTML = h+'</tbody>';
+  acctLedgerNote.textContent = `${Y}년 ${M}월 보기 (연도는 상단 연도 선택을 따름) · 기준일(${S.baseDate}) 이전 잔액(기울임체)은 기준일 스냅샷에서 거래를 거꾸로 빼서 계산한 값이라, 그 기간 거래가 빠짐없이 입력되어 있어야 실제 잔액과 일치합니다. 흐리게 표시된 행은 아직 반영되지 않은 예정 항목입니다.`;
 }
 acctLedgerSel && (acctLedgerSel.onchange = renderAcctLedger);
 const WD = ['일','월','화','수','목','금','토'];
