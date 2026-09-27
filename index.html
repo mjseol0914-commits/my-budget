@@ -764,6 +764,8 @@ function normalizeState(){
   migrateTabOrder();
 }
 function save(){
+  // 기준일 이전 거래가 추가·수정·삭제되었으면 기준일 잔액 반영 여부를 확인 (아래 syncPreBase 참고)
+  try{ if(typeof syncPreBase==='function') syncPreBase(true); }catch(e){ console.error('syncPreBase', e); }
   S.updatedAt = Date.now();
   localStorage.setItem(LS_KEY, JSON.stringify(S));
   if(typeof drivePushSoon==='function') drivePushSoon();   // 연결돼 있으면 Drive에도 반영
@@ -878,6 +880,41 @@ function accountDelta(name){
     const dt = new Date(t.year, t.month-1, t.day||1);
     return (dt>base && dt<=today) ? s+t.effect : s;
   },0);
+}
+// ---------- 기준일 이전 거래 변경 → 기준일 잔액 반영 ----------
+// 기준일 잔액은 "기준일 시점 잔액"이라, 기준일 이전 거래를 나중에 추가/수정/삭제해도 그대로 유지되고
+// 대신 그 이전의 과거 잔액이 역산으로 바뀌게 됨. (예: 6월 누락 수입 +10 입력 → 6/30 잔액은 그대로, 6월 이전 잔액만 -10)
+// 누락 거래를 보충하는 경우에는 기준일 잔액도 같이 움직여야 하므로, 계좌별 "기준일까지 누적 거래합"을 기억해 두었다가
+// 저장 시 달라졌으면 그 차이만큼 기준일 잔액에 반영할지 물어봄.
+function preBaseSums(){
+  const base = new Date(S.baseDate+'T00:00:00'); base.setHours(0,0,0,0);
+  const o = {};
+  if(isNaN(base.getTime())) return o;
+  S.accounts.forEach(a=>{
+    o[a.name] = accountTx(a.name).reduce((s,t)=> new Date(t.year, t.month-1, t.day||1)<=base ? s+t.effect : s, 0);
+  });
+  return o;
+}
+function syncPreBase(ask){
+  const cur = preBaseSums();
+  const prev = S.preBase;
+  if(ask && prev && prev.base===S.baseDate && prev.sums){
+    const diffs = S.accounts
+      .filter(a=> Object.prototype.hasOwnProperty.call(prev.sums, a.name) && Object.prototype.hasOwnProperty.call(cur, a.name))
+      .map(a=>({a, d: Math.round((cur[a.name]-prev.sums[a.name])*100)/100}))
+      .filter(x=>x.d);
+    if(diffs.length){
+      const list = diffs.map(x=>`· ${x.a.name}: ${x.d>0?'+':''}${fmt(x.d)}원`).join('\n');
+      const ok = confirm(`기준일(${S.baseDate}) 이전 거래가 변경되었습니다.\n${list}\n\n`
+        + `[확인] 기준일 잔액에도 반영 — 누락 거래 보충/수정인 경우 (거래일 이전 잔액은 그대로, 거래일부터 이후 잔액이 함께 변동)\n`
+        + `[취소] 기준일 잔액 유지 — 기준일 잔액이 은행에서 확인한 실제 금액인 경우 (거래일~기준일 잔액은 그대로, 거래일 이전 잔액이 변동)`);
+      if(ok) diffs.forEach(({a,d})=>{
+        const b = (a.balance===null||a.balance===undefined||a.balance==='') ? (+a.init||0) : +a.balance;
+        a.balance = b + d;
+      });
+    }
+  }
+  S.preBase = {base:S.baseDate, sums:cur};
 }
 function accountCardDelta(name){
   const base = new Date(S.baseDate+'T00:00:00'); base.setHours(0,0,0,0);
@@ -3347,6 +3384,7 @@ function renderRoadmapChart(){
 
 // ---------- render all ----------
 function renderAll(){ renderYearSel(); renderMonFilters(); renderDash(); renderTx(); renderAsset(); renderCats(); }
+if(!S.preBase || S.preBase.base!==S.baseDate){ try{ syncPreBase(false); }catch(e){ console.error(e); } }
 renderAll();
 driveAutoStart();
 </script>
