@@ -601,8 +601,10 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
     <div><label>은행 / 기관</label><input type="text" id="acBank"></div>
     <div class="row">
       <div><label>초기금액</label><input type="text" inputmode="numeric" class="amt-input" id="acInit" placeholder="0"></div>
-      <div><label>현재잔액 (비우면 초기금액 사용)</label><input type="text" inputmode="numeric" class="amt-input" id="acBal" placeholder=""></div>
+      <div><label id="acBalLabel">기준일 잔액 (비우면 초기금액 사용)</label><input type="text" inputmode="numeric" class="amt-input amt-signed" id="acBal" placeholder=""></div>
     </div>
+    <div><label>오늘 실제 잔액으로 맞추기 (선택 · 입력하면 기준일 잔액을 자동 역산)</label><input type="text" inputmode="numeric" class="amt-input" id="acToday" placeholder="">
+      <div class="note" id="acTodayHint" style="margin-top:4px"></div></div>
     <div><label style="display:flex;align-items:center;gap:6px;margin-top:2px"><input type="checkbox" id="acCheckCard" style="width:auto"> 체크카드 연동 계좌 (거래 추가 시 「체크카드」 수단 선택 목록에 표시)</label></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
       <button class="btn" type="button" onclick="acctDlg.close()">취소</button>
@@ -2349,6 +2351,16 @@ function renderAsset(){
       <td><button class="btn sm" onclick="editAcct(${i})">수정</button>
           <button class="btn danger sm" onclick="delAcct(${i})">삭제</button></td></tr>`;
   });
+  if(acc.length){
+    const sumInit = acc.reduce((s,a)=>s+(+a.init||0),0);
+    const sumSnap = acc.reduce((s,a)=>s+snap(a),0);
+    h += `<tr style="font-weight:700;border-top:2px solid var(--line);background:#fafbfc">
+      <td colspan="4">합계</td>
+      <td class="num">${fmt(sumInit)}</td>
+      <td class="num ${sumSnap>=0?'pos':'neg'}">${fmt(sumSnap)}</td>
+      <td class="num ${total>=0?'pos':'neg'}">${fmt(total)}</td>
+      <td></td></tr>`;
+  }
   document.getElementById('tblAcct').innerHTML=h+'</tbody>';
   let hc = '<thead><tr><th>카드</th><th>카드사</th><th>출금계좌</th><th class="num">출금일</th><th></th></tr></thead><tbody>';
   S.cards.forEach((c,i)=>{
@@ -2388,6 +2400,7 @@ document.getElementById('cardItemForm').onsubmit = ()=>{
 btnAcctAdd.onclick=()=>{
   acctIdx=null; acctDlgTitle.textContent='계좌 추가';
   acName.value=''; acKind.value='현 금'; acBank.value=''; setAmt(acInit,0); acBal.value=''; acCheckCard.checked=false;
+  prepAcctTodayField();
   acctDlg.showModal();
 };
 window.editAcct = i=>{
@@ -2396,13 +2409,34 @@ window.editAcct = i=>{
   acName.value=a.name; acKind.value=a.kind||'현 금'; acBank.value=a.bank||'';
   setAmt(acInit, a.init||0); setAmt(acBal, (a.balance===null||a.balance===undefined)?'':a.balance);
   acCheckCard.checked = !!a.hasCheckCard;
+  prepAcctTodayField();
   acctDlg.showModal();
 };
 window.delAcct = i=>{
   if(!confirm(`「${S.accounts[i].name}」 계좌를 삭제할까요?\n(기존 거래 기록은 유지됩니다)`)) return;
   S.accounts.splice(i,1); save(); renderAsset();
 };
+// 「오늘 실제 잔액으로 맞추기」: 오늘 실제 잔액 − (기준일 이후 오늘까지 반영되는 거래) = 기준일 잔액
+// 기준일은 건드리지 않으므로, 기준일 변경 시의 자동 흡수 로직과 이중 반영되지 않음
+function prepAcctTodayField(){
+  acBalLabel.textContent = `기준일(${S.baseDate}) 잔액 (비우면 초기금액 사용)`;
+  acToday.value = '';
+  const nm = acName.value.trim();
+  const cur = (acctIdx===null) ? 0 : ((acBal.value.trim()==='') ? numVal(acInit) : numVal(acBal));
+  acToday.placeholder = nm ? `현재 앱 계산값: ${fmt(cur + accountDelta(nm))}` : '';
+  acTodayHint.textContent = '';
+}
+function updateAcctTodayHint(){
+  if(acToday.value.trim()===''){ acTodayHint.textContent=''; return; }
+  const d = accountDelta(acName.value.trim());
+  const b = numVal(acToday) - d;
+  setAmt(acBal, b);
+  acTodayHint.textContent = `기준일(${S.baseDate}) 이후 반영 거래 ${d>=0?'+':''}${fmt(d)}원 → 기준일 잔액 ${fmt(b)}원으로 저장됩니다.`;
+}
+acToday.addEventListener('input', updateAcctTodayHint);
+acName.addEventListener('input', updateAcctTodayHint);
 document.getElementById('acctForm').onsubmit=()=>{
+  if(acToday.value.trim()!=='') setAmt(acBal, numVal(acToday) - accountDelta(acName.value.trim()));
   const rec = {name:acName.value.trim(), kind:acKind.value, bank:acBank.value.trim(),
     init:numVal(acInit), balance: acBal.value.trim()===''? null : numVal(acBal), hasCheckCard:acCheckCard.checked};
   if(acctIdx===null) S.accounts.push(rec);
