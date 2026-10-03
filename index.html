@@ -114,7 +114,7 @@ tr.addrow input,tr.addrow select{width:100%;font-size:12px;padding:5px 6px}
 #tblAcctLedger td{white-space:normal;word-break:break-all}
 #txTable tr.cardrow td{border-top:0px solid #93a5fd;border-bottom:1px solid #93a5fd;background:#fff}
 #txTable tbody td{background:#fff}
-#txTable tr.edited td{background:#fffbe6}
+#txTable tr.edited td{background:#fff}
 .mtabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px}
 .calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
 .calgrid .cal-dow{text-align:center;font-size:11px;color:var(--sub);font-weight:600;padding:4px 0}
@@ -135,7 +135,7 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
 .frm select,.frm input{width:100%}
 .acct-kind{font-size:11px;color:var(--sub)}
 .note{font-size:12px;color:var(--sub);margin-top:8px}
-.edited{background:#fffbeb}
+.edited{background:#fff}
 .msel{position:relative;display:inline-block}
 .msel .mbtn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;color:var(--ink);font-weight:500}
 .msel .mbtn .cnt{color:var(--sub);font-weight:400;margin:0 3px}
@@ -1147,10 +1147,10 @@ let METHOD_EXCL_TIER = new Set();    // 지출 수단별 막대(chMethod)에서 
 let METHOD_EXCL_EXP = new Set();     // 지출 수단별 막대(chMethod)에서 제외된 카테고리
 // 대시보드 표 토글(꺼진 카테고리는 합계·비중에서 제외). 표마다 독립
 let TBL_OFF_INC = new Set(), TBL_OFF_INCM = new Set(), TBL_OFF_CAT = new Set(), TBL_OFF_CATM = new Set();
-// 대시보드 그래프 파스텔 팔레트
-const PASTEL = ['#a5c8f0','#f7a8a8','#a8e0c4','#fcd5a0','#c9b6ec','#f6b8d6','#9fded8','#fbc4a0','#b4bdf2','#cfd4dc','#cde8a5','#a6dcef','#e8b6ee','#f8b4bf','#d6bdf5','#b5e5b9','#f6e3a1','#bcd6f5','#d7cdc5','#fcc3cc'];
-const PASTEL_INC = ['#8fd4b4','#b5e5c9','#9fded8','#c8ecd8','#a8dfb0','#d2eba8','#a6d8ef','#bfe8c0'];
-const PASTEL_TIER = {'필수':'#b4bdf2','선택':'#fcd9a0','비정기':'#f7b0b0'};
+// 대시보드 그래프 파스텔 팔레트 (마카롱 톤)
+const PASTEL = ['#FF9AA2','#FFB97A','#FFE07A','#9EE2B8','#8FD3FE','#A9B8FF','#D3A6F5','#FFA6D1','#7FD8D0','#FFC48C','#B8E07E','#9FC4FF','#F5A3E0','#FFD27F','#86E0C8','#C4B5FD','#FF8FB1','#A3E4F7','#E2C29E','#C9D17A'];
+const PASTEL_INC = ['#7FDBA8','#8FD3FE','#7FD8D0','#B8E07E','#A3E4F7','#9EE2B8','#86E0C8','#C6EFA0'];
+const PASTEL_TIER = {'필수':'#A9B8FF','선택':'#FFB97A','비정기':'#FF9AA2'};
 // 표 카테고리명 셀: 토글 + 이름
 function tglCell(name, on, extraStyle){
   return `<td${extraStyle?` style="${extraStyle}"`:''}><div class="catname"><label class="tgl" title="합계·비중 포함 여부"><input type="checkbox" data-cat="${esc(name)}"${on?' checked':''}><span></span></label><span class="nm">${esc(name)}</span></div></td>`;
