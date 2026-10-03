@@ -8,7 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
-:root{--bg:#f4f5f7;--card:#fff;--ink:#1f2328;--sub:#6b7280;--line:#e5e7eb;--blue:#3b82f6;--red:#ef4444;--green:#10b981;--violet:#8b5cf6;--amber:#f59e0b;--header-h:64px}
+:root{--nav-w:190px;--bg:#f4f5f7;--card:#fff;--ink:#1f2328;--sub:#6b7280;--line:#e5e7eb;--blue:#3b82f6;--red:#ef4444;--green:#10b981;--violet:#8b5cf6;--amber:#f59e0b;--header-h:64px}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
 header{background:#fff;border-bottom:1px solid var(--line);padding:12px 24px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:20;flex-wrap:wrap}
@@ -19,6 +19,23 @@ header input.base{border:1px solid var(--line);border-radius:6px;padding:3px 6px
 nav{display:flex;gap:4px;flex-wrap:wrap;flex-basis:100%}
 nav button{border:none;background:none;padding:8px 14px;border-radius:8px;font-size:14px;cursor:pointer;color:var(--sub)}
 nav button.on{background:#eef2ff;color:#4338ca;font-weight:600}
+/* 페이지 메뉴: 좌측 세로 사이드바 (좁은 화면에서는 기존처럼 상단 가로 메뉴) */
+/* 상단 바 없이 좌측 사이드바 하나로: 가계부 → 년도 → 기준일 → 드라이브 연결 → 페이지 메뉴 */
+@media(min-width:801px){
+  body{padding-left:var(--nav-w)}
+  header{position:fixed;left:0;top:0;bottom:0;width:var(--nav-w);flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:10px;padding:18px 12px;border-bottom:none;border-right:1px solid var(--line);overflow-y:auto}
+  header h1{padding:0 4px}
+  header select.year{width:100%}
+  header .sub{flex-wrap:wrap}
+  header .basebox{display:flex;flex-direction:column;align-items:stretch;gap:4px}
+  header .basebox input.base{width:100%;padding:5px 6px}
+  header .drivebox{margin-left:0!important;flex-direction:column;align-items:stretch!important;gap:6px!important;padding-bottom:12px;border-bottom:1px solid var(--line)}
+  header .drivebox .btn{width:100%}
+  header #driveStatus{white-space:normal!important}
+  nav{flex-direction:column;flex-wrap:nowrap;gap:2px;flex-basis:auto}
+  nav button{text-align:left;width:100%}
+  nav button:hover:not(.on){background:#f4f5f7}
+}
 main{max-width:1200px;margin:0 auto;padding:20px 24px 60px}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
@@ -131,14 +148,26 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
 .msel .pop label{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;font-size:13px;cursor:pointer;white-space:nowrap}
 .msel .pop label:hover{background:#f4f5f7}
 .msel .pop label input{margin:0;width:auto}
+/* 대시보드 표: 카테고리별 포함/제외 토글 스위치 */
+.tgl{position:relative;display:inline-block;width:24px;height:14px;flex:0 0 auto;vertical-align:middle;cursor:pointer}
+.tgl input{position:absolute;opacity:0;width:0;height:0;margin:0}
+.tgl span{position:absolute;inset:0;border-radius:14px;background:#d1d5db;transition:background .15s}
+.tgl span::before{content:'';position:absolute;left:2px;top:2px;width:10px;height:10px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:transform .15s}
+.tgl input:checked+span{background:#a5b4fc}
+.tgl input:checked+span::before{transform:translateX(10px)}
+.tgl input:focus-visible+span{outline:2px solid #6366f1;outline-offset:1px}
+.catname{display:flex;align-items:center;gap:6px;min-width:0}
+.catname .nm{overflow:hidden;text-overflow:ellipsis}
+tr.tgl-off td.cv{color:#c3c7cf;text-decoration:line-through}
+tr.tgl-off .catname .nm{color:#9ca3af}
 </style>
 </head>
 <body>
 <header>
   <h1>가계부</h1>
   <select class="year" id="yearSel"></select>
-  <span class="sub">기준일 <input type="date" class="base" id="baseDate" title="자산 스냅샷 기준일 — 직접 수정 가능"></span>
-  <span style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+  <span class="sub basebox">기준일 <input type="date" class="base" id="baseDate" title="자산 스냅샷 기준일 — 직접 수정 가능"></span>
+  <span class="drivebox" style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
     <span id="driveStatus" class="sub" style="white-space:nowrap"></span>
     <button class="btn sm" id="btnDrive">Google Drive 연결</button>
     <button class="btn sm" id="btnDriveSync" style="display:none">↻ 동기화</button>
@@ -163,9 +192,9 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
     </span>
   </h3><div class="chartbox"><canvas id="chMonthly"></canvas></div></div>
   <div class="grid3">
-    <div class="panel"><h3>지출 대분류별 비중 <select id="dashMonthMajor"></select><span class="msel" id="mfCatMajorTier" style="margin-left:6px"></span></h3><div class="chartbox"><canvas id="chCatMajor"></canvas></div></div>
-    <div class="panel"><h3>지출 계정별 비중 <select id="dashMonth"></select><span class="msel" id="mfCatTier" style="margin-left:6px"></span></h3><div class="chartbox"><canvas id="chCat"></canvas></div></div>
-    <div class="panel"><h3>지출 수단별 <span class="sub" id="methodScope"></span></h3><div class="chartbox"><canvas id="chMethod"></canvas></div></div>
+    <div class="panel"><h3>지출 대분류별 비중 <select id="dashMonthMajor"></select><span class="msel" id="mfCatMajorTier" style="margin-left:6px"></span><span class="msel" id="mfCatMajorExp"></span></h3><div class="chartbox"><canvas id="chCatMajor"></canvas></div></div>
+    <div class="panel"><h3>지출 계정별 비중 <select id="dashMonth"></select><span class="msel" id="mfCatTier" style="margin-left:6px"></span><span class="msel" id="mfCatExp"></span></h3><div class="chartbox"><canvas id="chCat"></canvas></div></div>
+    <div class="panel"><h3>지출 수단별 <span class="sub" id="methodScope"></span> <select id="dashMonthMethod"></select><span class="msel" id="mfMethodTier" style="margin-left:6px"></span><span class="msel" id="mfMethodExp"></span></h3><div class="chartbox"><canvas id="chMethod"></canvas></div></div>
   </div>
   <div class="grid2">
     <div class="panel"><h3>수입 항목 (연간)</h3><div style="overflow-x:auto"><table id="tblInc"></table></div></div>
@@ -1112,6 +1141,20 @@ baseDate.onchange = ()=>{
 let chMonthly, chCat, chMethod, chAsset, chMoM, chCatMajor, chRoadmap;
 let CAT_EXCL_TIER = new Set();       // 지출 계정별 비중 도넛(chCat)에서 제외된 지출구분
 let CATMAJOR_EXCL_TIER = new Set();  // 지출 대분류별 비중 도넛(chCatMajor)에서 제외된 지출구분
+let CAT_EXCL_EXP = new Set();        // 지출 계정별 비중 도넛(chCat)에서 제외된 카테고리
+let CATMAJOR_EXCL_EXP = new Set();   // 지출 대분류별 비중 도넛(chCatMajor)에서 제외된 카테고리
+let METHOD_EXCL_TIER = new Set();    // 지출 수단별 막대(chMethod)에서 제외된 지출구분
+let METHOD_EXCL_EXP = new Set();     // 지출 수단별 막대(chMethod)에서 제외된 카테고리
+// 대시보드 표 토글(꺼진 카테고리는 합계·비중에서 제외). 표마다 독립
+let TBL_OFF_INC = new Set(), TBL_OFF_INCM = new Set(), TBL_OFF_CAT = new Set(), TBL_OFF_CATM = new Set();
+// 대시보드 그래프 파스텔 팔레트
+const PASTEL = ['#a5c8f0','#f7a8a8','#a8e0c4','#fcd5a0','#c9b6ec','#f6b8d6','#9fded8','#fbc4a0','#b4bdf2','#cfd4dc','#cde8a5','#a6dcef','#e8b6ee','#f8b4bf','#d6bdf5','#b5e5b9','#f6e3a1','#bcd6f5','#d7cdc5','#fcc3cc'];
+const PASTEL_INC = ['#8fd4b4','#b5e5c9','#9fded8','#c8ecd8','#a8dfb0','#d2eba8','#a6d8ef','#bfe8c0'];
+const PASTEL_TIER = {'필수':'#b4bdf2','선택':'#fcd9a0','비정기':'#f7b0b0'};
+// 표 카테고리명 셀: 토글 + 이름
+function tglCell(name, on, extraStyle){
+  return `<td${extraStyle?` style="${extraStyle}"`:''}><div class="catname"><label class="tgl" title="합계·비중 포함 여부"><input type="checkbox" data-cat="${esc(name)}"${on?' checked':''}><span></span></label><span class="nm">${esc(name)}</span></div></td>`;
+}
 // 월별 수입/지출 차트에서 제외할 항목 (빈 Set = 전체 표시). 새로 추가되는 항목은 기본 포함
 let MON_EXCL_INC = new Set();    // 수입 카테고리명
 let MON_EXCL_EXP = new Set();    // 지출 카테고리명
@@ -1169,7 +1212,7 @@ function renderDash(){
   const labels = Array.from({length:12},(_,i)=>(i+1)+'월');
   if(chMonthly) chMonthly.destroy();
   // 수입: 수입구분(그룹)별 색상 분할 · 지출: 지출구분(필수/선택/비정기)별 색상 분할
-  const INC_PALETTE = ['#047857','#10b981','#14b8a6','#34d399','#22c55e','#84cc16','#0ea5e9','#4ade80'];
+  const INC_PALETTE = PASTEL_INC;
   const incGroupOrder = [];
   S.incomeCats.forEach(c=>{ if(c.group && c.group!=='소득 외' && !incGroupOrder.includes(c.group)) incGroupOrder.push(c.group); });
   Object.keys(incByGroup).forEach(g=>{ if(!incGroupOrder.includes(g)) incGroupOrder.push(g); });
@@ -1177,9 +1220,9 @@ function renderDash(){
     label:g, data:incByGroup[g], backgroundColor:INC_PALETTE[idx%INC_PALETTE.length], stack:'inc', borderRadius:3
   }));
   const expDatasets = [
-    {label:'필수', data:expTier['필수'], backgroundColor:'#6366f1', stack:'exp'},
-    {label:'선택', data:expTier['선택'], backgroundColor:'#f59e0b', stack:'exp'},
-    {label:'비정기', data:expTier['비정기'], backgroundColor:'#ef4444', stack:'exp'}
+    {label:'필수', data:expTier['필수'], backgroundColor:PASTEL_TIER['필수'], stack:'exp'},
+    {label:'선택', data:expTier['선택'], backgroundColor:PASTEL_TIER['선택'], stack:'exp'},
+    {label:'비정기', data:expTier['비정기'], backgroundColor:PASTEL_TIER['비정기'], stack:'exp'}
   ];
   chMonthly = new Chart(document.getElementById('chMonthly'), {
     type:'bar',
@@ -1202,14 +1245,22 @@ const LEGEND_SQUARE = {position:'right', labels:{boxWidth:12,boxHeight:12}};
 function renderCatCharts(){
   const sel = document.getElementById('dashMonth').value;
   const selMajor = document.getElementById('dashMonthMajor').value;
-  const txs = yearTx().filter(t=>t.type==='지출' && (sel===''||t.month==sel) && !CAT_EXCL_TIER.has(categoryTier(t.category)));
-  const txsMajor = yearTx().filter(t=>t.type==='지출' && (selMajor===''||t.month==selMajor) && !CATMAJOR_EXCL_TIER.has(categoryTier(t.category)));
+  const selMethod = document.getElementById('dashMonthMethod').value;
+  const txs = yearTx().filter(t=>t.type==='지출' && (sel===''||t.month==sel) && !CAT_EXCL_TIER.has(categoryTier(t.category)) && !CAT_EXCL_EXP.has(t.category||'기타'));
+  const txsMajor = yearTx().filter(t=>t.type==='지출' && (selMajor===''||t.month==selMajor) && !CATMAJOR_EXCL_TIER.has(categoryTier(t.category)) && !CATMAJOR_EXCL_EXP.has(t.category||'기타'));
+  const txsMethod = yearTx().filter(t=>t.type==='지출' && (selMethod===''||t.month==selMethod) && !METHOD_EXCL_TIER.has(categoryTier(t.category)) && !METHOD_EXCL_EXP.has(t.category||'기타'));
   buildMsel('mfCatTier','지출구분', monTierItems(), CAT_EXCL_TIER);
   buildMsel('mfCatMajorTier','지출구분', monTierItems(), CATMAJOR_EXCL_TIER);
-  document.getElementById('methodScope').textContent = sel===''?'(연간)':`(${sel}월)`;
+  buildMsel('mfCatExp','카테고리', monExpCats(), CAT_EXCL_EXP);
+  buildMsel('mfCatMajorExp','카테고리', monExpCats(), CATMAJOR_EXCL_EXP);
+  buildMsel('mfMethodTier','지출구분', monTierItems(), METHOD_EXCL_TIER);
+  buildMsel('mfMethodExp','카테고리', monExpCats(), METHOD_EXCL_EXP);
+  document.getElementById('methodScope').textContent = selMethod===''?'(연간)':`(${selMethod}월)`;
   const byCat={}, byMethod={}, byMajor={};
   txs.forEach(t=>{
     byCat[t.category||'기타'] = (byCat[t.category||'기타']||0)+(+t.amount||0);
+  });
+  txsMethod.forEach(t=>{
     byMethod[t.method||'기타'] = (byMethod[t.method||'기타']||0)+(+t.amount||0);
   });
   txsMajor.forEach(t=>{
@@ -1218,7 +1269,7 @@ function renderCatCharts(){
   });
   // 임의로 묶지 않고 실제 존재하는 계정만큼 그대로 표시(거래내역과 항상 1:1 일치)
   const main = Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
-  const palette=['#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1','#9ca3af','#84cc16','#06b6d4','#d946ef','#f43f5e','#a855f7','#22c55e','#eab308','#0ea5e9','#78716c','#fb7185'];
+  const palette=PASTEL;
   const colors = main.map((_,i)=>palette[i%palette.length]);
   if(chCat) chCat.destroy();
   chCat = new Chart(document.getElementById('chCat'),{type:'doughnut',
@@ -1234,7 +1285,7 @@ function renderCatCharts(){
   const me = Object.entries(byMethod).sort((a,b)=>b[1]-a[1]);
   if(chMethod) chMethod.destroy();
   chMethod = new Chart(document.getElementById('chMethod'),{type:'bar',
-    data:{labels:me.map(x=>x[0]),datasets:[{data:me.map(x=>x[1]),backgroundColor:'#6366f1',borderRadius:4}]},
+    data:{labels:me.map(x=>x[0]),datasets:[{data:me.map(x=>x[1]),backgroundColor:me.map((_,i)=>PASTEL[i%PASTEL.length]),borderRadius:4}]},
     options:{indexAxis:'y',maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>won(c.raw)}}},
       scales:{x:{ticks:{callback:v=>(v/10000)+'만'}}}}});
 }
@@ -1245,7 +1296,8 @@ function renderIncTable(){
     const k=t.category||'기타'; if(!by[k]) by[k]={sum:0,months:Array(12).fill(0)};
     by[k].sum+=+t.amount||0; by[k].months[t.month-1]+=+t.amount||0;
   });
-  const total = Object.values(by).reduce((a,x)=>a+x.sum,0)||1;
+  const OFF = TBL_OFF_INC, isOn = n=>!OFF.has(n);
+  const total = Object.entries(by).reduce((a,[n,x])=>a+(isOn(n)?x.sum:0),0)||1;
   const groupOf = name => { const c=S.incomeCats.find(c=>c.name===name); return (c&&c.group)||'기타'; };
   const groupOrder=[]; S.incomeCats.forEach(c=>{ if(c.group!=='소득 외' && !groupOrder.includes(c.group)) groupOrder.push(c.group); });
   const tree={};
@@ -1257,26 +1309,27 @@ function renderIncTable(){
   }
   groups.forEach(g=>{
     const list = tree[g];
-    const gSum = list.reduce((a,[,x])=>a+x.sum,0);
+    const gSum = list.reduce((a,[n,x])=>a+(isOn(n)?x.sum:0),0);
     list.sort((a,b)=>b[1].sum-a[1].sum);
     list.forEach(([name,x],idx)=>{
       const mcnt = x.months.filter(v=>v>0).length||1;
-      h+='<tr>';
+      const on = isOn(name);
+      h+=`<tr${on?'':' class="tgl-off"'}>`;
       if(idx===0){
         h+=`<td rowspan="${list.length}" style="background:#eef2ff;color:#4338ca;font-weight:700;vertical-align:top;white-space:normal"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:6px"><span>${esc(g)}</span><span style="font-weight:400">${(gSum/total*100).toFixed(1)}%</span></div><div class="sub" style="font-weight:400;margin-top:4px;color:#4338ca">${fmt(gSum)}</div></td>`;
       }
-      h+=`<td>${esc(name)}</td><td class="num">${fmt(x.sum/mcnt)}</td><td class="num">${fmt(x.sum)}</td><td class="num">${(x.sum/total*100).toFixed(1)}%</td>`;
+      h+=tglCell(name,on)+`<td class="num cv">${fmt(x.sum/mcnt)}</td><td class="num cv">${fmt(x.sum)}</td><td class="num cv">${on?(x.sum/total*100).toFixed(1)+'%':'—'}</td>`;
       h+='</tr>';
     });
   });
   if(groups.length){
-    const tm = sumMonths(by), tSum = tm.reduce((a,v)=>a+v,0), tCnt = tm.filter(v=>v>0).length||1;
+    const tm = sumMonths(by, OFF), tSum = tm.reduce((a,v)=>a+v,0), tCnt = tm.filter(v=>v>0).length||1;
     h += `<tr style="font-weight:700;border-top:2px solid var(--line);background:#fafbfc"><td colspan="2">합계</td><td class="num">${fmt(tSum/tCnt)}</td><td class="num">${fmt(tSum)}</td><td class="num">100.0%</td></tr>`;
   }
   document.getElementById('tblInc').innerHTML = h+'</tbody>';
 }
 // 대시보드 표 하단 합계행용: 카테고리별 월 배열을 합산
-function sumMonths(by){ const m=Array(12).fill(0); Object.values(by).forEach(x=>x.months.forEach((v,i)=>m[i]+=v)); return m; }
+function sumMonths(by, off){ const m=Array(12).fill(0); Object.entries(by).forEach(([n,x])=>{ if(off&&off.has(n)) return; x.months.forEach((v,i)=>m[i]+=v); }); return m; }
 // ---------- 수입 항목 (월별, 필터 없이 1~12월 전체) ----------
 function renderIncMonthlyTable(){
   const by={};
@@ -1284,6 +1337,7 @@ function renderIncMonthlyTable(){
     const k=t.category||'기타'; if(!by[k]) by[k]={sum:0,months:Array(12).fill(0)};
     by[k].sum+=+t.amount||0; by[k].months[t.month-1]+=+t.amount||0;
   });
+  const OFF = TBL_OFF_INCM, isOn = n=>!OFF.has(n);
   const groupOf = name => { const c=S.incomeCats.find(c=>c.name===name); return (c&&c.group)||'기타'; };
   const groupOrder=[]; S.incomeCats.forEach(c=>{ if(c.group!=='소득 외' && !groupOrder.includes(c.group)) groupOrder.push(c.group); });
   const tree={};
@@ -1298,18 +1352,19 @@ function renderIncMonthlyTable(){
     const list = tree[g];
     list.sort((a,b)=>b[1].sum-a[1].sum);
     list.forEach(([name,x],idx)=>{
-      h+='<tr>';
+      const on = isOn(name);
+      h+=`<tr${on?'':' class="tgl-off"'}>`;
       if(idx===0){
         h+=`<td rowspan="${list.length}" style="background:#eef2ff;color:#4338ca;font-weight:700;vertical-align:top;white-space:nowrap">${esc(g)}</td>`;
       }
-      h+=`<td style="white-space:nowrap">${esc(name)}</td>`;
-      h+=`<td class="num" style="font-weight:600">${fmt(x.sum)}</td>`;
-      h+= x.months.map(v=>`<td class="num">${v?fmt(v):''}</td>`).join('');
+      h+=tglCell(name,on,'white-space:nowrap');
+      h+=`<td class="num cv" style="font-weight:600">${fmt(x.sum)}</td>`;
+      h+= x.months.map(v=>`<td class="num cv">${v?fmt(v):''}</td>`).join('');
       h+='</tr>';
     });
   });
   if(groups.length){
-    const tm = sumMonths(by);
+    const tm = sumMonths(by, OFF);
     h += `<tr style="font-weight:700;border-top:2px solid var(--line);background:#fafbfc"><td colspan="2">합계</td><td class="num">${fmt(tm.reduce((a,v)=>a+v,0))}</td>${tm.map(v=>`<td class="num">${v?fmt(v):''}</td>`).join('')}</tr>`;
   }
   document.getElementById('tblIncMonthly').innerHTML = h+'</tbody>';
@@ -1320,7 +1375,8 @@ function renderCatTable(){
     const k=t.category||'기타'; if(!by[k]) by[k]={sum:0,cnt:0,months:Array(12).fill(0)};
     by[k].sum+=+t.amount||0; by[k].cnt++; by[k].months[t.month-1]+=+t.amount||0;
   });
-  const total = Object.values(by).reduce((a,x)=>a+x.sum,0)||1;
+  const OFF = TBL_OFF_CAT, isOn = n=>!OFF.has(n);
+  const total = Object.entries(by).reduce((a,[n,x])=>a+(isOn(n)?x.sum:0),0)||1;
   // 지출구분(필수/선택/비정기) → 대분류 → 카테고리명 순으로 그룹화, 각각 별도 열로 표시(rowspan 병합)
   const tierStyle = {'필수':{bg:'#e0e7ff',fg:'#4338ca'}, '선택':{bg:'#dcfce7',fg:'#15803d'}, '비정기':{bg:'#fee2e2',fg:'#b91c1c'}};
   const tree={};
@@ -1333,17 +1389,18 @@ function renderCatTable(){
   let h='<thead><tr><th>지출구분</th><th>분류</th><th>카테고리명</th><th class="num">월평균</th><th class="num">연간 합계</th><th class="num">비중</th></tr></thead><tbody>';
   tiers.forEach(tier=>{
     const majorEntries = Object.entries(tree[tier]);
-    const tierSum = majorEntries.reduce((a,[,list])=>a+list.reduce((s,[,x])=>s+x.sum,0),0);
+    const tierSum = majorEntries.reduce((a,[,list])=>a+list.reduce((s,[n,x])=>s+(isOn(n)?x.sum:0),0),0);
     const tierRows = majorEntries.reduce((a,[,list])=>a+list.length,0);
     const st = tierStyle[tier]||{bg:'#f4f5f7',fg:'#374151'};
     majorEntries.sort((a,b)=>b[1].reduce((s,[,x])=>s+x.sum,0)-a[1].reduce((s,[,x])=>s+x.sum,0));
     let firstRowOfTier = true;
     majorEntries.forEach(([major,list])=>{
-      const majorSum = list.reduce((a,[,x])=>a+x.sum,0);
+      const majorSum = list.reduce((a,[n,x])=>a+(isOn(n)?x.sum:0),0);
       list.sort((a,b)=>b[1].sum-a[1].sum);
       list.forEach(([name,x],idx)=>{
         const mcnt = x.months.filter(v=>v>0).length||1;
-        h+='<tr>';
+        const on = isOn(name);
+        h+=`<tr${on?'':' class="tgl-off"'}>`;
         if(firstRowOfTier){
           h+=`<td rowspan="${tierRows}" style="background:${st.bg};color:${st.fg};font-weight:700;vertical-align:top;white-space:normal"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:6px"><span>${esc(tier)}</span><span style="font-weight:400">${(tierSum/total*100).toFixed(1)}%</span></div><div class="sub" style="font-weight:400;margin-top:4px;color:${st.fg}">${fmt(tierSum)}</div></td>`;
           firstRowOfTier=false;
@@ -1351,13 +1408,13 @@ function renderCatTable(){
         if(idx===0){
           h+=`<td rowspan="${list.length}" style="background:#fbfbff;font-weight:600;vertical-align:top;white-space:normal"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:6px"><span>${esc(major)}</span><span style="font-weight:400">${(majorSum/total*100).toFixed(1)}%</span></div><div class="sub" style="font-weight:400;margin-top:4px">${fmt(majorSum)}</div></td>`;
         }
-        h+=`<td>${esc(name)}</td><td class="num">${fmt(x.sum/mcnt)}</td><td class="num">${fmt(x.sum)}</td><td class="num">${(x.sum/total*100).toFixed(1)}%</td>`;
+        h+=tglCell(name,on)+`<td class="num cv">${fmt(x.sum/mcnt)}</td><td class="num cv">${fmt(x.sum)}</td><td class="num cv">${on?(x.sum/total*100).toFixed(1)+'%':'—'}</td>`;
         h+='</tr>';
       });
     });
   });
   if(tiers.length){
-    const tm = sumMonths(by), tSum = tm.reduce((a,v)=>a+v,0), tCnt = tm.filter(v=>v>0).length||1;
+    const tm = sumMonths(by, OFF), tSum = tm.reduce((a,v)=>a+v,0), tCnt = tm.filter(v=>v>0).length||1;
     h += `<tr style="font-weight:700;border-top:2px solid var(--line);background:#fafbfc"><td colspan="3">합계</td><td class="num">${fmt(tSum/tCnt)}</td><td class="num">${fmt(tSum)}</td><td class="num">100.0%</td></tr>`;
   }
   document.getElementById('tblCat').innerHTML = h+'</tbody>';
@@ -1369,6 +1426,7 @@ function renderCatMonthlyTable(){
     const k=t.category||'기타'; if(!by[k]) by[k]={sum:0,months:Array(12).fill(0)};
     by[k].sum+=+t.amount||0; by[k].months[t.month-1]+=+t.amount||0;
   });
+  const OFF = TBL_OFF_CATM, isOn = n=>!OFF.has(n);
   const tierStyle = {'필수':{bg:'#e0e7ff',fg:'#4338ca'}, '선택':{bg:'#dcfce7',fg:'#15803d'}, '비정기':{bg:'#fee2e2',fg:'#b91c1c'}};
   const tree={};
   Object.entries(by).forEach(([name,x])=>{
@@ -1391,7 +1449,8 @@ function renderCatMonthlyTable(){
     majorEntries.forEach(([major,list])=>{
       list.sort((a,b)=>b[1].sum-a[1].sum);
       list.forEach(([name,x],idx)=>{
-        h+='<tr>';
+        const on = isOn(name);
+        h+=`<tr${on?'':' class="tgl-off"'}>`;
         if(firstRowOfTier){
           h+=`<td rowspan="${tierRows}" style="background:${st.bg};color:${st.fg};font-weight:700;vertical-align:top;white-space:nowrap">${esc(tier)}</td>`;
           firstRowOfTier=false;
@@ -1399,15 +1458,15 @@ function renderCatMonthlyTable(){
         if(idx===0){
           h+=`<td rowspan="${list.length}" style="background:#fbfbff;font-weight:600;vertical-align:top;white-space:nowrap">${esc(major)}</td>`;
         }
-        h+=`<td style="white-space:nowrap">${esc(name)}</td>`;
-        h+=`<td class="num" style="font-weight:600">${fmt(x.sum)}</td>`;
-        h+= x.months.map(v=>`<td class="num">${v?fmt(v):''}</td>`).join('');
+        h+=tglCell(name,on,'white-space:nowrap');
+        h+=`<td class="num cv" style="font-weight:600">${fmt(x.sum)}</td>`;
+        h+= x.months.map(v=>`<td class="num cv">${v?fmt(v):''}</td>`).join('');
         h+='</tr>';
       });
     });
   });
   if(tiers.length){
-    const tm = sumMonths(by);
+    const tm = sumMonths(by, OFF);
     h += `<tr style="font-weight:700;border-top:2px solid var(--line);background:#fafbfc"><td colspan="3">합계</td><td class="num">${fmt(tm.reduce((a,v)=>a+v,0))}</td>${tm.map(v=>`<td class="num">${v?fmt(v):''}</td>`).join('')}</tr>`;
   }
   document.getElementById('tblCatMonthly').innerHTML = h+'</tbody>';
@@ -1418,6 +1477,19 @@ dm.onchange = renderCatCharts;
 const dmMajor = document.getElementById('dashMonthMajor');
 dmMajor.innerHTML = '<option value="">연간</option>'+Array.from({length:12},(_,i)=>`<option value="${i+1}">${i+1}월</option>`).join('');
 dmMajor.onchange = renderCatCharts;
+const dmMethod = document.getElementById('dashMonthMethod');
+dmMethod.innerHTML = '<option value="">연간</option>'+Array.from({length:12},(_,i)=>`<option value="${i+1}">${i+1}월</option>`).join('');
+dmMethod.onchange = renderCatCharts;
+// 대시보드 표 토글: 해당 표만 다시 그림
+[['tblInc',()=>TBL_OFF_INC,()=>renderIncTable()],['tblIncMonthly',()=>TBL_OFF_INCM,()=>renderIncMonthlyTable()],
+ ['tblCat',()=>TBL_OFF_CAT,()=>renderCatTable()],['tblCatMonthly',()=>TBL_OFF_CATM,()=>renderCatMonthlyTable()]].forEach(([id,getSet,rerender])=>{
+  document.getElementById(id).addEventListener('change', e=>{
+    const cb = e.target.closest('input[data-cat]'); if(!cb) return;
+    const set = getSet();
+    if(cb.checked) set.delete(cb.dataset.cat); else set.add(cb.dataset.cat);
+    rerender();
+  });
+});
 
 // ---------- 월별 수입/지출 필터 ----------
 function monIncCats(){ return S.incomeCats.map(c=>({group:c.group||'기타', name:c.name})); }
