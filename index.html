@@ -158,6 +158,12 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
 .tgl input:focus-visible+span{outline:2px solid #6366f1;outline-offset:1px}
 .catname{display:flex;align-items:center;gap:6px;min-width:0}
 .catname .nm{overflow:hidden;text-overflow:ellipsis}
+.cdot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle;flex:0 0 auto;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+.catname .cdot{margin-right:0}
+input.cpick{width:28px;height:22px;padding:0;border:1px solid var(--line);border-radius:6px;background:#fff;cursor:pointer;vertical-align:middle}
+input.cpick::-webkit-color-swatch-wrapper{padding:2px}
+input.cpick::-webkit-color-swatch{border:none;border-radius:4px}
+input.cpick::-moz-color-swatch{border:none;border-radius:4px}
 tr.tgl-off td.cv{color:#c3c7cf;text-decoration:line-through}
 tr.tgl-off .catname .nm{color:#9ca3af}
 </style>
@@ -778,6 +784,34 @@ function migrateTabOrder(){
   Object.keys(TAB_LABELS).forEach(t=>{ if(!S.tabOrder.includes(t)) S.tabOrder.push(t); });
 }
 migrateTabOrder();
+// ---------- 카테고리·계좌 색상 (사용자 지정, 없으면 기본 팔레트로 채움) ----------
+function defaultCatPalette(){ return ['#FF9AA2','#FFB97A','#FFE07A','#9EE2B8','#8FD3FE','#A9B8FF','#D3A6F5','#FFA6D1','#7FD8D0','#FFC48C','#B8E07E','#9FC4FF','#F5A3E0','#FFD27F','#86E0C8','#C4B5FD','#FF8FB1','#A3E4F7','#E2C29E','#C9D17A']; }
+function defaultAcctPalette(){ return ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1','#ef4444','#0ea5e9','#84cc16','#a855f7','#22c55e','#eab308','#06b6d4','#d946ef','#f43f5e','#78716c','#64748b','#0d9488']; }
+function nextDefaultColor(list, pal){ return pal[list.length % pal.length]; }
+function ensureColors(){
+  const cp = defaultCatPalette(), ap = defaultAcctPalette();
+  S.expenseCats.forEach((c,i)=>{ if(!c.color) c.color = cp[i%cp.length]; });
+  S.incomeCats.forEach((c,i)=>{ if(!c.color) c.color = cp[i%cp.length]; });
+  S.accounts.forEach((a,i)=>{ if(!a.color) a.color = ap[i%ap.length]; });
+}
+ensureColors();
+const NO_COLOR = '#d1d5db';
+// kind: 'exp' | 'inc' (이름이 같은 수입/지출 카테고리 구분용)
+function catColor(name, kind){
+  const list = kind==='inc' ? S.incomeCats : S.expenseCats;
+  const c = list.find(x=>x.name===(name||'기타'));
+  return (c && c.color) || NO_COLOR;
+}
+// 대분류 색상 = 그 대분류에 속한 첫 번째 카테고리(카테고리 설정 순서)의 색상
+function majorColor(major){
+  const c = S.expenseCats.find(x=>(x.major||x.name)===major);
+  return (c && c.color) || catColor(major,'exp');
+}
+function acctColor(name){
+  const a = S.accounts.find(x=>x.name===name);
+  return (a && a.color) || NO_COLOR;
+}
+function colorDot(color){ return `<span class="cdot" style="background:${color}"></span>`; }
 // Drive에서 불러온 상태 등에도 동일한 보정을 적용하기 위한 함수
 function normalizeState(){
   ['accounts','incomeCats','expenseCats','cards','added','deleted'].forEach(k=>{ if(!Array.isArray(S[k])) S[k]=defaultState()[k]; });
@@ -791,6 +825,7 @@ function normalizeState(){
   if(!S.budgetOverrides) S.budgetOverrides = {};
   if(!Array.isArray(S.assetGoals)) S.assetGoals = [];
   migrateTabOrder();
+  ensureColors();
 }
 function save(){
   // 기준일 이전 거래가 추가·수정·삭제되었으면 기준일 잔액 반영 여부를 확인 (아래 syncPreBase 참고)
@@ -1152,8 +1187,8 @@ const PASTEL = ['#FF9AA2','#FFB97A','#FFE07A','#9EE2B8','#8FD3FE','#A9B8FF','#D3
 const PASTEL_INC = ['#7FDBA8','#8FD3FE','#7FD8D0','#B8E07E','#A3E4F7','#9EE2B8','#86E0C8','#C6EFA0'];
 const PASTEL_TIER = {'필수':'#A9B8FF','선택':'#FFB97A','비정기':'#FF9AA2'};
 // 표 카테고리명 셀: 토글 + 이름
-function tglCell(name, on, extraStyle){
-  return `<td${extraStyle?` style="${extraStyle}"`:''}><div class="catname"><label class="tgl" title="합계·비중 포함 여부"><input type="checkbox" data-cat="${esc(name)}"${on?' checked':''}><span></span></label><span class="nm">${esc(name)}</span></div></td>`;
+function tglCell(name, on, extraStyle, kind){
+  return `<td${extraStyle?` style="${extraStyle}"`:''}><div class="catname"><label class="tgl" title="합계·비중 포함 여부"><input type="checkbox" data-cat="${esc(name)}"${on?' checked':''}><span></span></label>${colorDot(catColor(name, kind||'exp'))}<span class="nm">${esc(name)}</span></div></td>`;
 }
 // 월별 수입/지출 차트에서 제외할 항목 (빈 Set = 전체 표시). 새로 추가되는 항목은 기본 포함
 let MON_EXCL_INC = new Set();    // 수입 카테고리명
@@ -1270,14 +1305,14 @@ function renderCatCharts(){
   // 임의로 묶지 않고 실제 존재하는 계정만큼 그대로 표시(거래내역과 항상 1:1 일치)
   const main = Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
   const palette=PASTEL;
-  const colors = main.map((_,i)=>palette[i%palette.length]);
+  const colors = main.map(x=>catColor(x[0],'exp'));
   if(chCat) chCat.destroy();
   chCat = new Chart(document.getElementById('chCat'),{type:'doughnut',
     data:{labels:main.map(x=>x[0]),datasets:[{data:main.map(x=>x[1]),backgroundColor:colors}]},
     options:{maintainAspectRatio:false,plugins:{legend:LEGEND_SQUARE,tooltip:{callbacks:{label:c=>c.label+': '+won(c.raw)}}}}});
   // 대분류별 도넛(소분류 임의 병합 없이 카테고리 설정의 대분류 값으로 정확히 집계, 자체 연간/월별 필터 사용)
   const majorArr = Object.entries(byMajor).sort((a,b)=>b[1]-a[1]);
-  const majorColors = majorArr.map((_,i)=>palette[i%palette.length]);
+  const majorColors = majorArr.map(x=>majorColor(x[0]));
   if(chCatMajor) chCatMajor.destroy();
   chCatMajor = new Chart(document.getElementById('chCatMajor'),{type:'doughnut',
     data:{labels:majorArr.map(x=>x[0]),datasets:[{data:majorArr.map(x=>x[1]),backgroundColor:majorColors}]},
@@ -1318,7 +1353,7 @@ function renderIncTable(){
       if(idx===0){
         h+=`<td rowspan="${list.length}" style="background:#eef2ff;color:#4338ca;font-weight:700;vertical-align:top;white-space:normal"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:6px"><span>${esc(g)}</span><span style="font-weight:400">${(gSum/total*100).toFixed(1)}%</span></div><div class="sub" style="font-weight:400;margin-top:4px;color:#4338ca">${fmt(gSum)}</div></td>`;
       }
-      h+=tglCell(name,on)+`<td class="num cv">${fmt(x.sum/mcnt)}</td><td class="num cv">${fmt(x.sum)}</td><td class="num cv">${on?(x.sum/total*100).toFixed(1)+'%':'—'}</td>`;
+      h+=tglCell(name,on,'','inc')+`<td class="num cv">${fmt(x.sum/mcnt)}</td><td class="num cv">${fmt(x.sum)}</td><td class="num cv">${on?(x.sum/total*100).toFixed(1)+'%':'—'}</td>`;
       h+='</tr>';
     });
   });
@@ -1357,7 +1392,7 @@ function renderIncMonthlyTable(){
       if(idx===0){
         h+=`<td rowspan="${list.length}" style="background:#eef2ff;color:#4338ca;font-weight:700;vertical-align:top;white-space:nowrap">${esc(g)}</td>`;
       }
-      h+=tglCell(name,on,'white-space:nowrap');
+      h+=tglCell(name,on,'white-space:nowrap','inc');
       h+=`<td class="num cv" style="font-weight:600">${fmt(x.sum)}</td>`;
       h+= x.months.map(v=>`<td class="num cv">${v?fmt(v):''}</td>`).join('');
       h+='</tr>';
@@ -1715,7 +1750,7 @@ function renderTxCatDetail(monthTxs){
         const remainCell = budget
           ? `<span style="color:${remain>=0?'#15803d':'#b91c1c'};font-weight:600">${fmt(remain)}</span>`
           : `<span style="color:#9ca3af">-</span>`;
-        h+=`<td>${esc(name)}</td><td class="num">${budgetCell}</td><td class="num">${fmt(x.sum)}</td><td class="num">${remainCell}</td><td class="num">${(x.sum/total*100).toFixed(1)}%</td>`;
+        h+=`<td>${colorDot(catColor(name,'exp'))}${esc(name)}</td><td class="num">${budgetCell}</td><td class="num">${fmt(x.sum)}</td><td class="num">${remainCell}</td><td class="num">${(x.sum/total*100).toFixed(1)}%</td>`;
         h+='</tr>';
       });
     });
@@ -1803,7 +1838,7 @@ function renderTx(){
   </tr>` : `<tr class="${t._edited?'edited':''}">
     <td>${t.month}/${t.day??''} (${t.weekday||''})</td>
     <td><span class="tag ${t.type}">${t.type||''}</span></td>
-    <td>${esc(t.category)||(t.type==='계좌이동'?'이동':'')}</td>
+    <td>${(t.category && (t.type==='수입'||t.type==='지출'))?colorDot(catColor(t.category, t.type==='수입'?'inc':'exp')):''}${esc(t.category)||(t.type==='계좌이동'?'이동':'')}</td>
     <td class="num ${t.type==='수입'?'pos':t.type==='지출'?'neg':''}">${fmt(t.amount)}</td>
     <td style="white-space:normal"><span style="display:inline-block;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${esc(t.detail)}">${esc(t.detail)}</span></td>
     <td>${esc(t.method)}</td>
@@ -2537,15 +2572,15 @@ function renderAsset(){
   const sorted = acc.filter(a=>val(a)>0).sort((a,b)=>val(b)-val(a));
   chAsset = new Chart(document.getElementById('chAsset'),{type:'doughnut',
     data:{labels:sorted.map(a=>a.name),datasets:[{data:sorted.map(val),
-      backgroundColor:['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1','#ef4444','#0ea5e9','#84cc16','#a855f7']}]},
+      backgroundColor:sorted.map(a=>acctColor(a.name))}]},
     options:{maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{boxWidth:12,boxHeight:12}},tooltip:{callbacks:{label:c=>c.label+': '+won(c.raw)+' ('+(c.raw/(total||1)*100).toFixed(1)+'%)'}}}}});
-  let h=`<thead><tr><th>계좌명</th><th>구분</th><th>은행</th><th>체크카드</th><th class="num">초기금액</th><th class="num">기준일(${S.baseDate}) 잔액</th><th class="num">오늘 기준 잔액</th><th></th></tr></thead><tbody>`;
+  let h=`<thead><tr><th>계좌명 (색상)</th><th>구분</th><th>은행</th><th>체크카드</th><th class="num">초기금액</th><th class="num">기준일(${S.baseDate}) 잔액</th><th class="num">오늘 기준 잔액</th><th></th></tr></thead><tbody>`;
   acc.forEach((a,i)=>{
     const cd = accountCardDelta(a.name), tot = accountDelta(a.name), od = tot - cd;
     const parts=[];
     if(cd) parts.push(`카드출금 ${fmt(cd)}`);
     if(od) parts.push(`거래반영 ${od>0?'+':''}${fmt(od)}`);
-    h+=`<tr><td>${esc(a.name)}</td><td class="acct-kind">${esc(a.kind)}</td><td class="acct-kind">${esc(a.bank)}</td>
+    h+=`<tr><td style="white-space:nowrap"><input type="color" class="cpick" title="계좌 색상" data-acct="${i}" value="${esc(a.color||NO_COLOR)}"> ${esc(a.name)}</td><td class="acct-kind">${esc(a.kind)}</td><td class="acct-kind">${esc(a.bank)}</td>
       <td class="acct-kind">${a.hasCheckCard?'있음':'-'}</td>
       <td class="num">${fmt(a.init)}</td>
       <td class="num ${snap(a)>=0?'pos':'neg'}">${fmt(snap(a))}</td>
@@ -2564,6 +2599,9 @@ function renderAsset(){
       <td></td></tr>`;
   }
   document.getElementById('tblAcct').innerHTML=h+'</tbody>';
+  document.querySelectorAll('#tblAcct input.cpick').forEach(inp=>{
+    inp.onchange = ()=>{ const a=S.accounts[+inp.dataset.acct]; if(!a) return; a.color = inp.value; save(); renderAsset(); };
+  });
   let hc = '<thead><tr><th>카드</th><th>카드사</th><th>출금계좌</th><th class="num">출금일</th><th></th></tr></thead><tbody>';
   S.cards.forEach((c,i)=>{
     hc += `<tr><td>${esc(c.name)}</td><td>${esc(c.company)}</td><td>${esc(c.account)}</td><td class="num">매월 ${c.payday}일</td>
@@ -2640,7 +2678,8 @@ acName.addEventListener('input', updateAcctTodayHint);
 document.getElementById('acctForm').onsubmit=()=>{
   if(acToday.value.trim()!=='') setAmt(acBal, numVal(acToday) - accountDelta(acName.value.trim()));
   const rec = {name:acName.value.trim(), kind:acKind.value, bank:acBank.value.trim(),
-    init:numVal(acInit), balance: acBal.value.trim()===''? null : numVal(acBal), hasCheckCard:acCheckCard.checked};
+    init:numVal(acInit), balance: acBal.value.trim()===''? null : numVal(acBal), hasCheckCard:acCheckCard.checked,
+    color: (acctIdx!==null && S.accounts[acctIdx] && S.accounts[acctIdx].color) || nextDefaultColor(S.accounts, defaultAcctPalette())};
   if(acctIdx===null) S.accounts.push(rec);
   else S.accounts[acctIdx] = rec;
   save(); renderAsset();
@@ -2650,23 +2689,32 @@ document.getElementById('acctForm').onsubmit=()=>{
 const catDlg = document.getElementById('catDlg');
 let catMode='inc', catIdx=null;
 function renderCats(){
-  let h='<thead><tr><th></th><th>수입구분</th><th>카테고리명</th><th></th></tr></thead><tbody>';
+  let h='<thead><tr><th></th><th>수입구분</th><th>색상</th><th>카테고리명</th><th></th></tr></thead><tbody>';
+  const picker = (m,i,c)=>`<td style="width:40px"><input type="color" class="cpick" title="카테고리 색상" data-mode="${m}" data-i="${i}" value="${esc(c.color||NO_COLOR)}"></td>`;
   S.incomeCats.forEach((c,i)=>{
-    h+=`<tr draggable="true" data-i="${i}"><td class="grip" title="끌어서 순서 변경">⠿</td><td class="acct-kind">${esc(c.group)}</td><td>${esc(c.name)}</td>
+    h+=`<tr draggable="true" data-i="${i}"><td class="grip" title="끌어서 순서 변경">⠿</td><td class="acct-kind">${esc(c.group)}</td>${picker('inc',i,c)}<td>${esc(c.name)}</td>
       <td style="text-align:right;white-space:nowrap"><button class="btn sm" onclick="editCat('inc',${i})">수정</button>
       <button class="btn danger sm" onclick="delCat('inc',${i})">삭제</button></td></tr>`;
   });
   document.getElementById('tblIncCat').innerHTML=h+'</tbody>';
-  h='<thead><tr><th></th><th>지출구분</th><th>분류</th><th>카테고리명</th><th></th></tr></thead><tbody>';
+  h='<thead><tr><th></th><th>지출구분</th><th>분류</th><th>색상</th><th>카테고리명</th><th></th></tr></thead><tbody>';
   const tierTag = t=>`<span class="tag" style="background:${t==='필수'?'#e0e7ff':t==='선택'?'#dcfce7':'#fee2e2'};color:${t==='필수'?'#4338ca':t==='선택'?'#15803d':'#b91c1c'}">${esc(t)}</span>`;
   S.expenseCats.forEach((c,i)=>{
-    h+=`<tr draggable="true" data-i="${i}"><td class="grip" title="끌어서 순서 변경">⠿</td><td>${tierTag(c.tier||'선택')}</td><td class="acct-kind">${esc(c.major)}</td><td>${esc(c.name)}</td>
+    h+=`<tr draggable="true" data-i="${i}"><td class="grip" title="끌어서 순서 변경">⠿</td><td>${tierTag(c.tier||'선택')}</td><td class="acct-kind">${esc(c.major)}</td>${picker('exp',i,c)}<td>${esc(c.name)}</td>
       <td style="text-align:right;white-space:nowrap"><button class="btn sm" onclick="editCat('exp',${i})">수정</button>
       <button class="btn danger sm" onclick="delCat('exp',${i})">삭제</button></td></tr>`;
   });
   document.getElementById('tblExpCat').innerHTML=h+'</tbody>';
   enableCatDnd('tblIncCat','inc');
   enableCatDnd('tblExpCat','exp');
+  document.querySelectorAll('#tblIncCat input.cpick, #tblExpCat input.cpick').forEach(inp=>{
+    inp.addEventListener('mousedown', e=>e.stopPropagation());
+    inp.onchange = ()=>{
+      const list = inp.dataset.mode==='exp'?S.expenseCats:S.incomeCats;
+      const c = list[+inp.dataset.i]; if(!c) return;
+      c.color = inp.value; save();
+    };
+  });
 }
 // 마우스로 행을 끌어 원하는 위치로 한 번에 이동 (드래그 앤 드롭)
 let catDnd = null;
@@ -2740,6 +2788,7 @@ document.getElementById('catForm').onsubmit=()=>{
     ? {group:(ctGroup.value.trim()||'변동'), major:ctMajor.value.trim(), name:ctName.value.trim(), tier:ctTier.value}
     : {group:ctGroup.value.trim(), name:ctName.value.trim()};
   const list = catMode==='exp'?S.expenseCats:S.incomeCats;
+  rec.color = (catIdx!==null && list[catIdx] && list[catIdx].color) || nextDefaultColor(list, defaultCatPalette());
   if(catIdx===null) list.push(rec); else list[catIdx]=rec;
   save(); renderCats(); renderMonFilters(); renderDash(); renderTx();
 };
