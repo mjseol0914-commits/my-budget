@@ -318,6 +318,19 @@ tr.tgl-off .catname .nm{color:#9ca3af}
     <button data-fintab="yearend" class="on">연말정산 계산</button>
     <button data-fintab="deposit">예적금 만기 계산</button>
     <button data-fintab="loan">대출이자 계산</button>
+    <button data-fintab="goal">목표금액 모으기</button>
+    <button data-fintab="compound">적립식 복리</button>
+    <button data-fintab="lumpvs">거치 vs 적립</button>
+    <button data-fintab="rule72">72법칙</button>
+    <button data-fintab="inflation">실질가치</button>
+    <button data-fintab="fire">은퇴자금·FIRE</button>
+  </div>
+  <div class="panel" id="finExportBar" style="display:none;padding:10px 14px">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span class="sub" id="finExportLabel" style="margin-right:auto"></span>
+      <button class="btn sm" id="btnFinXlsx">엑셀로 저장</button>
+      <button class="btn sm" id="btnFinGsheet">구글 시트로 저장</button>
+    </div>
   </div>
 
   <div id="fin-yearend">
@@ -425,6 +438,146 @@ tr.tgl-off .catname .nm{color:#9ca3af}
     <h3>월별 상환 스케줄</h3>
     <div style="overflow-x:auto;max-height:480px;overflow-y:auto"><table id="tblLoanSchedule"></table></div>
   </div>
+  </div>
+
+  <div id="fin-goal" style="display:none">
+  <div class="panel">
+    <h3>목표금액 모으기 (역산 계산기)</h3>
+    <div class="frm">
+      <div class="row">
+        <div><label>계산 방식</label><select id="goalMode"><option value="pmt">기간을 정하고 → 매달 얼마씩 모아야 하는지</option><option value="term">월 적립액을 정하고 → 얼마나 걸리는지</option></select></div>
+        <div><label>목표 금액</label><input type="text" inputmode="numeric" class="amt-input" id="gcTarget" placeholder="예: 100,000,000"></div>
+      </div>
+      <div class="row">
+        <div><label>지금 모아둔 돈</label><input type="text" inputmode="numeric" class="amt-input" id="gcStart" placeholder="0"></div>
+        <div><label>예상 연 수익률(%)</label><input type="number" step="0.1" id="gcRate" placeholder="예: 3.5"></div>
+      </div>
+      <div class="row">
+        <div id="gcMonthsWrap"><label>기간(개월)</label><input type="number" id="gcMonths" placeholder="예: 60"></div>
+        <div id="gcPmtWrap" style="display:none"><label>월 적립액</label><input type="text" inputmode="numeric" class="amt-input" id="gcPmt" placeholder="0"></div>
+        <div><label>물가상승률(%, 선택)</label><input type="number" step="0.1" id="gcInfl" placeholder="예: 2.5"></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" id="gcFill">이 앱 데이터로 채우기 (현재 총자산 · 최근 평균 월 순저축액)</button></div>
+      <div class="note">매달 초에 적립하고, 연 수익률을 12로 나눈 월 수익률로 매달 복리 계산합니다. 세금·수수료는 반영하지 않은 세전 기준입니다.</div>
+      <div style="display:flex;justify-content:flex-end"><button class="btn primary" id="btn_goal_calc">계산하기</button></div>
+    </div>
+  </div>
+  <div class="cards" id="goalSummary" style="display:none"></div>
+  <div class="panel" id="goalChartWrap" style="display:none"><div class="chartbox"><canvas id="ch_goal"></canvas></div></div>
+  <div class="panel" id="goalTableWrap" style="display:none"><h3 id="goalTableTitle">상세 내역</h3><div style="overflow-x:auto;max-height:480px;overflow-y:auto"><table id="tbl_goal"></table></div><div class="note" id="goalNote"></div></div>
+  </div>
+  <div id="fin-compound" style="display:none">
+  <div class="panel">
+    <h3>적립식 복리 투자 계산기</h3>
+    <div class="frm">
+      <div class="row">
+        <div><label>초기 투자금(목돈)</label><input type="text" inputmode="numeric" class="amt-input" id="ccStart" placeholder="0"></div>
+        <div><label>월 적립액</label><input type="text" inputmode="numeric" class="amt-input" id="ccPmt" placeholder="예: 500,000"></div>
+      </div>
+      <div class="row">
+        <div><label>예상 연 수익률(%)</label><input type="number" step="0.1" id="ccRate" placeholder="예: 7"></div>
+        <div><label>투자 기간(년)</label><input type="number" id="ccYears" placeholder="예: 20"></div>
+      </div>
+      <div class="row">
+        <div><label>월 적립액 연 증가율(%, 선택)</label><input type="number" step="0.1" id="ccGrow" placeholder="예: 3 (연봉 인상 등)"></div>
+        <div><label>물가상승률(%, 선택)</label><input type="number" step="0.1" id="ccInfl" placeholder="예: 2.5"></div>
+      </div>
+      <div class="note">매달 초 적립 · 월 복리(연 수익률 ÷ 12) · 세전 기준입니다. 월 적립액 증가율을 넣으면 해마다 그 비율만큼 적립액을 늘린다고 가정합니다.</div>
+      <div style="display:flex;justify-content:flex-end"><button class="btn primary" id="btn_compound_calc">계산하기</button></div>
+    </div>
+  </div>
+  <div class="cards" id="compoundSummary" style="display:none"></div>
+  <div class="panel" id="compoundChartWrap" style="display:none"><div class="chartbox"><canvas id="ch_compound"></canvas></div></div>
+  <div class="panel" id="compoundTableWrap" style="display:none"><h3 id="compoundTableTitle">상세 내역</h3><div style="overflow-x:auto;max-height:480px;overflow-y:auto"><table id="tbl_compound"></table></div><div class="note" id="compoundNote"></div></div>
+  </div>
+  <div id="fin-lumpvs" style="display:none">
+  <div class="panel">
+    <h3>목돈 거치 vs 나눠서 적립 비교</h3>
+    <div class="frm">
+      <div class="row">
+        <div><label>투자할 총 금액</label><input type="text" inputmode="numeric" class="amt-input" id="lvAmount" placeholder="예: 12,000,000"></div>
+        <div><label>예상 연 수익률(%)</label><input type="number" step="0.1" id="lvRate" placeholder="예: 5"></div>
+      </div>
+      <div class="row">
+        <div><label>적립 기간(개월) — 이 기간 동안 나눠서 넣음</label><input type="number" id="lvMonths" placeholder="예: 12"></div>
+        <div><label>전체 비교 기간(개월) — 이 시점의 금액을 비교</label><input type="number" id="lvHorizon" placeholder="비우면 적립 기간과 같음"></div>
+      </div>
+      <div class="note">거치식은 첫 달에 전액을 넣고, 적립식은 같은 총액을 적립 기간 동안 매달 초 똑같이 나눠 넣습니다. 수익률이 일정하면 거치식이 유리하지만, 실제로는 수익률이 오르내리므로 적립식은 매수 시점을 분산해 변동 위험을 줄이는 효과가 있습니다.</div>
+      <div style="display:flex;justify-content:flex-end"><button class="btn primary" id="btn_lumpvs_calc">계산하기</button></div>
+    </div>
+  </div>
+  <div class="cards" id="lumpvsSummary" style="display:none"></div>
+  <div class="panel" id="lumpvsChartWrap" style="display:none"><div class="chartbox"><canvas id="ch_lumpvs"></canvas></div></div>
+  <div class="panel" id="lumpvsTableWrap" style="display:none"><h3 id="lumpvsTableTitle">상세 내역</h3><div style="overflow-x:auto;max-height:480px;overflow-y:auto"><table id="tbl_lumpvs"></table></div><div class="note" id="lumpvsNote"></div></div>
+  </div>
+  <div id="fin-rule72" style="display:none">
+  <div class="panel">
+    <h3>72법칙 · 자산 배수 기간</h3>
+    <div class="frm">
+      <div class="row">
+        <div><label>계산 방식</label><select id="r72Mode"><option value="years">수익률 → 몇 년 걸리는지</option><option value="rate">원하는 기간 → 필요한 수익률</option></select></div>
+        <div><label>목표 배수</label><input type="number" step="0.1" id="r72Mult" value="2"></div>
+      </div>
+      <div class="row">
+        <div id="r72RateWrap"><label>연 수익률(%)</label><input type="number" step="0.1" id="r72Rate" placeholder="예: 6"></div>
+        <div id="r72YearsWrap" style="display:none"><label>원하는 기간(년)</label><input type="number" step="0.1" id="r72Years" placeholder="예: 10"></div>
+      </div>
+      <div class="note">72법칙은 72 ÷ 연 수익률(%)로 2배가 되는 햇수를 어림하는 방법입니다. 정확한 값은 연 복리 기준 log(배수) ÷ log(1+수익률)로 함께 계산합니다.</div>
+      <div style="display:flex;justify-content:flex-end"><button class="btn primary" id="btn_rule72_calc">계산하기</button></div>
+    </div>
+  </div>
+  <div class="cards" id="rule72Summary" style="display:none"></div>
+  <div class="panel" id="rule72ChartWrap" style="display:none"><div class="chartbox"><canvas id="ch_rule72"></canvas></div></div>
+  <div class="panel" id="rule72TableWrap" style="display:none"><h3 id="rule72TableTitle">상세 내역</h3><div style="overflow-x:auto;max-height:480px;overflow-y:auto"><table id="tbl_rule72"></table></div><div class="note" id="rule72Note"></div></div>
+  </div>
+  <div id="fin-inflation" style="display:none">
+  <div class="panel">
+    <h3>물가상승 반영 실질가치</h3>
+    <div class="frm">
+      <div class="row">
+        <div><label>금액</label><input type="text" inputmode="numeric" class="amt-input" id="ifAmount" placeholder="예: 100,000,000"></div>
+        <div><label>연 물가상승률(%)</label><input type="number" step="0.1" id="ifRate" placeholder="예: 2.5"></div>
+      </div>
+      <div class="row">
+        <div><label>기간(년)</label><input type="number" id="ifYears" placeholder="예: 10"></div>
+        <div></div>
+      </div>
+      <div class="note">두 가지를 함께 계산합니다. ① 그 기간 뒤에 받을 금액이 지금 돈으로 얼마의 가치인지, ② 지금 이 금액으로 사는 것을 그 기간 뒤에 사려면 얼마가 필요한지.</div>
+      <div style="display:flex;justify-content:flex-end"><button class="btn primary" id="btn_inflation_calc">계산하기</button></div>
+    </div>
+  </div>
+  <div class="cards" id="inflationSummary" style="display:none"></div>
+  <div class="panel" id="inflationChartWrap" style="display:none"><div class="chartbox"><canvas id="ch_inflation"></canvas></div></div>
+  <div class="panel" id="inflationTableWrap" style="display:none"><h3 id="inflationTableTitle">상세 내역</h3><div style="overflow-x:auto;max-height:480px;overflow-y:auto"><table id="tbl_inflation"></table></div><div class="note" id="inflationNote"></div></div>
+  </div>
+  <div id="fin-fire" style="display:none">
+  <div class="panel">
+    <h3>은퇴자금 / FIRE 계산기</h3>
+    <div class="frm">
+      <div class="row">
+        <div><label>은퇴 후 연 생활비 (지금 돈 기준)</label><input type="text" inputmode="numeric" class="amt-input" id="frSpend" placeholder="예: 36,000,000"></div>
+        <div><label>안전 인출률(%)</label><input type="number" step="0.1" id="frWithdraw" value="4"></div>
+      </div>
+      <div class="row">
+        <div><label>현재 자산</label><input type="text" inputmode="numeric" class="amt-input" id="frStart" placeholder="0"></div>
+        <div><label>월 저축액</label><input type="text" inputmode="numeric" class="amt-input" id="frPmt" placeholder="0"></div>
+      </div>
+      <div class="row">
+        <div><label>은퇴 전 예상 연 수익률(%)</label><input type="number" step="0.1" id="frRate" placeholder="예: 6"></div>
+        <div><label>물가상승률(%)</label><input type="number" step="0.1" id="frInfl" value="2.5"></div>
+      </div>
+      <div class="row">
+        <div><label>현재 나이(선택)</label><input type="number" id="frAge" placeholder="예: 35"></div>
+        <div></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" id="frFill">이 앱 데이터로 채우기 (현재 총자산 · 최근 평균 월 순저축액 · 최근 12개월 지출)</button></div>
+      <div class="note">필요 은퇴자금 = 연 생활비 ÷ 인출률 (4%면 생활비의 25배). 물가상승을 빼고 남는 실질 수익률로 계산하므로, 모든 금액은 <b>지금 돈의 가치</b>로 표시됩니다. 매달 저축액은 물가만큼 함께 늘린다고 가정합니다.</div>
+      <div style="display:flex;justify-content:flex-end"><button class="btn primary" id="btn_fire_calc">계산하기</button></div>
+    </div>
+  </div>
+  <div class="cards" id="fireSummary" style="display:none"></div>
+  <div class="panel" id="fireChartWrap" style="display:none"><div class="chartbox"><canvas id="ch_fire"></canvas></div></div>
+  <div class="panel" id="fireTableWrap" style="display:none"><h3 id="fireTableTitle">상세 내역</h3><div style="overflow-x:auto;max-height:480px;overflow-y:auto"><table id="tbl_fire"></table></div><div class="note" id="fireNote"></div></div>
   </div>
 </section>
 
@@ -2843,10 +2996,13 @@ function renderFinance(){
 function switchFinTab(name){
   const nav = document.getElementById('finTabs');
   nav.querySelectorAll('button').forEach(b=> b.classList.toggle('on', b.dataset.fintab===name));
-  ['yearend','deposit','loan'].forEach(t=> document.getElementById('fin-'+t).style.display = t===name?'':'none');
+  FIN_TABS.forEach(t=> document.getElementById('fin-'+t).style.display = t===name?'':'none');
+  FIN_CUR = name;
   if(name==='yearend') renderYearEndCalc();
   else if(name==='deposit') renderDepositCalc();
   else if(name==='loan') renderLoanCalc();
+  else wireNewCalcs();
+  updateFinExportBar();
 }
 
 // ==================== 대출 이자 계산 ====================
@@ -2892,6 +3048,10 @@ function renderLoanCalc(){
     h += rows.map(x=>`<tr><td>${x.n}회</td><td class="num">${fmt(Math.round(x.princ))}</td><td class="num">${fmt(Math.round(x.interest))}</td><td class="num" style="font-weight:600">${fmt(Math.round(x.pay))}</td><td class="num">${fmt(Math.round(x.balance))}</td></tr>`).join('');
     document.getElementById('tblLoanSchedule').innerHTML = h+'</tbody>';
     document.getElementById('loanScheduleWrap').style.display='';
+    finSetResult('loan', {title:'대출이자 계산',
+      inputs:[['대출원금',principal],['연이자율(%)',rate],['대출기간(개월)',months],['상환방식',document.getElementById('loanMethod').selectedOptions[0].textContent]],
+      summary:[['총 상환액',Math.round(totalPay)],['총 이자',Math.round(totalInt)],['첫 회차 상환액',Math.round(rows[0].pay)],['평균 월 상환액',Math.round(totalPay/months)]],
+      tables:[{name:'월별 상환 스케줄', header:['회차','납입원금','납입이자','월상환액','대출잔액'], rows:rows.map(x=>[x.n,Math.round(x.princ),Math.round(x.interest),Math.round(x.pay),Math.round(x.balance)])}]});
   };
 }
 
@@ -2927,6 +3087,10 @@ function renderDepositCalc(){
     document.getElementById('depIntGross').textContent = won(grossInt);
     document.getElementById('depTaxAmt').textContent = won(taxAmt);
     document.getElementById('depFinal').textContent = won(finalAmt);
+    finSetResult('deposit', {title:'예적금 만기 계산',
+      inputs:[['상품 종류',typeEl.selectedOptions[0].textContent],['과세 유형',taxEl.selectedOptions[0].textContent+(taxEl.value==='custom'?` (${taxRate*100}%)`:'')],[type==='install'?'매월 납입액':'예치금액',amount],['연이자율(%)',rate],['가입기간(개월)',months]],
+      summary:[[type==='install'?'원금(총 납입액)':'원금(예치금액)',Math.round(principalTotal)],['세전 이자',Math.round(grossInt)],['이자 과세액',Math.round(taxAmt)],['만기 실 수령액',Math.round(finalAmt)]],
+      tables:[]});
   };
 }
 
@@ -2985,6 +3149,9 @@ function renderYearEndCalc(){
       document.getElementById('yeDetailWrap').style.display='';
       document.getElementById('tblYeDetail').innerHTML = `<tbody><tr><td colspan="2" style="padding:16px;text-align:center;color:#9ca3af">사용액 합계(${fmt(totalUsed)})가 최저사용금액(${fmt(minAmt)})을 넘지 않아 공제 대상 금액이 없습니다.</td></tr></tbody>`;
       document.getElementById('yeAdviceWrap').style.display='';
+      finSetResult('yearend', {title:'연말정산 소득공제 계산',
+        inputs:[['기준 연도',yeYearEl.value],['총급여(연봉)',salary],['신용카드 사용액',credit],['체크카드·현금 사용액',check]],
+        summary:[['최저사용금액 ('+cfg.minPct+'%)',Math.round(minAmt)],['공제율 적용 공제액',0],['최종 소득공제액',0],['예상 절세액',0],['최저사용금액까지 남은 금액',Math.round(minAmt-totalUsed)]], tables:[]});
       document.getElementById('yeAdvice').innerHTML = `<div class="note">최저사용금액까지 <b>${fmt(minAmt-totalUsed)}원</b> 더 사용해야 공제가 시작됩니다. 최저사용금액 구간은 공제율이 낮은 신용카드부터 채워지는 것이 유리하니, 이 구간까지는 신용카드를 우선 사용하는 것을 고려해보세요.</div>`;
       return;
     }
@@ -3039,6 +3206,11 @@ function renderYearEndCalc(){
       advice = `공제한도까지 <b>${fmt(Math.round(shortfall))}원</b>이 더 필요합니다. 공제율이 더 높은 체크카드·현금영수증으로 채우면 <b>약 ${fmt(Math.round(extraCheckNeeded))}원</b>, 신용카드로 채우면 <b>약 ${fmt(Math.round(extraCreditNeeded))}원</b>을 추가로 더 사용해야 한도를 다 채울 수 있습니다. 공제율이 2배 높은 체크카드·현금영수증 위주로 추가 지출하는 편이 같은 지출로 더 많은 공제를 받을 수 있어 유리합니다.`;
     }
     document.getElementById('yeAdvice').innerHTML = `<div class="note">${advice}</div>`;
+    finSetResult('yearend', {title:'연말정산 소득공제 계산',
+      inputs:[['기준 연도',yeYearEl.value],['총급여(연봉)',salary],['신용카드 사용액',credit],['체크카드·현금 사용액',check],['최저사용비율(%)',cfg.minPct],['신용카드 공제율(%)',cfg.creditRate],['체크카드·현금 공제율(%)',cfg.checkRate],['한계세율(%)',cfg.taxBracket]],
+      summary:[['최저사용금액',Math.round(minAmt)],['공제율 적용 공제액',Math.round(deductBase)],['공제한도',limit],['최종 소득공제액',Math.round(finalDeduct)],['예상 절세액',Math.round(taxSave)]],
+      tables:[{name:'상세 계산 내역', header:['구분','금액'], rows:[['신용카드 사용액',credit],['체크카드·현금 사용액',check],['사용액 합계',totalUsed],['최저사용금액',Math.round(minAmt)],['공제대상 신용카드 사용액',Math.round(creditAfterMin)],['공제대상 체크카드·현금 사용액',Math.round(checkAfterMin)],['신용카드 공제액',Math.round(creditDeduct)],['체크카드·현금 공제액',Math.round(checkDeduct)],['공제율 적용 공제액 합계',Math.round(deductBase)],['공제한도',limit],['최종 소득공제액',Math.round(finalDeduct)],['예상 절세액',Math.round(taxSave)]]}],
+      notes:[advice.replace(/<[^>]+>/g,'')]});
   };
 }
 
@@ -3758,6 +3930,278 @@ function renderGoalTrend(){
     options:{maintainAspectRatio:false, plugins:{legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'line',font:{size:10}}}, tooltip:{callbacks:{label:c=>c.raw==null?null:c.dataset.label+': '+won(c.raw)}}},
       scales:{y:{ticks:{callback:v=>(v/10000).toLocaleString()+'만'}}, x:{ticks:{font:{size:9},maxTicksLimit:18}}}}});
 }
+
+// ==================== 금융 계산: 추가 계산기 + 결과 저장(엑셀·구글 시트) ====================
+const FIN_TABS = ['yearend','deposit','loan','goal','compound','lumpvs','rule72','inflation','fire'];
+const FIN_SHORT = {yearend:'연말정산',deposit:'예적금',loan:'대출이자',goal:'목표모으기',compound:'적립식복리',lumpvs:'거치vs적립',rule72:'72법칙',inflation:'실질가치',fire:'은퇴자금'};
+let FIN_CUR = 'yearend';
+const FIN_LAST = {};
+const finCharts = {};
+function finSetResult(key, res){ res.at = new Date(); FIN_LAST[key] = res; updateFinExportBar(); }
+function updateFinExportBar(){
+  const bar = document.getElementById('finExportBar'); if(!bar) return;
+  const r = FIN_LAST[FIN_CUR];
+  bar.style.display = r ? '' : 'none';
+  if(r) document.getElementById('finExportLabel').textContent = `「${r.title}」 마지막 계산 결과 (${r.at.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})})`;
+}
+const pctStr = (v,d=2)=> (Math.round(v*Math.pow(10,d))/Math.pow(10,d)).toLocaleString('ko-KR')+'%';
+function numIn(id){ const el=document.getElementById(id); return el.classList.contains('amt-input') ? numVal(el) : (parseFloat(el.value)||0); }
+function finCards(key, items){   // items: [[label, text, cls]]
+  const el = document.getElementById(key+'Summary');
+  el.innerHTML = items.map(([t,v,c])=>`<div class="card"><div class="t">${t}</div><div class="v ${c||''}">${v}</div></div>`).join('');
+  el.style.display='';
+}
+function finTable(key, title, header, rows, note, numCols){
+  document.getElementById(key+'TableTitle').textContent = title;
+  const isNum = i => numCols ? numCols.includes(i) : i>0;
+  let h = '<thead><tr>'+header.map((x,i)=>`<th${isNum(i)?' class="num"':''}>${x}</th>`).join('')+'</tr></thead><tbody>';
+  rows.forEach(r=>{ h+='<tr>'+r.map((v,i)=>`<td${isNum(i)?' class="num"':''}>${typeof v==='number'?fmt(v):esc(String(v))}</td>`).join('')+'</tr>'; });
+  document.getElementById('tbl_'+key).innerHTML = h+'</tbody>';
+  document.getElementById(key+'Note').innerHTML = note||'';
+  document.getElementById(key+'TableWrap').style.display='';
+}
+function finChart(key, cfg){
+  document.getElementById(key+'ChartWrap').style.display='';
+  if(finCharts[key]) finCharts[key].destroy();
+  cfg.options = Object.assign({maintainAspectRatio:false, plugins:{legend:{position:'bottom',labels:{font:{size:10}}}, tooltip:{callbacks:{label:c=>c.dataset.label+': '+won(c.raw)}}},
+    scales:{y:{stacked:!!cfg.stacked, ticks:{callback:v=>(v/10000).toLocaleString()+'만'}}, x:{stacked:!!cfg.stacked, ticks:{font:{size:9}}}}}, cfg.options||{});
+  finCharts[key] = new Chart(document.getElementById('ch_'+key), cfg);
+}
+function appSavingsDefaults(){
+  return { assets: Math.round(calcTotalAssets()), save: Math.max(0, Math.round(recentAvgMonthlyNet(6))) };
+}
+function recent12Spend(){
+  const now=new Date(); let sum=0, cnt=0;
+  for(let k=1;k<=12;k++){ const d=new Date(now.getFullYear(), now.getMonth()-k, 1); const y=d.getFullYear(), m=d.getMonth()+1;
+    const e = allTx().filter(t=>t.type==='지출' && (t.year||SEED.year)===y && t.month===m).reduce((a,t)=>a+(+t.amount||0),0);
+    if(e>0){ sum+=e; cnt++; } }
+  return cnt ? Math.round(sum/cnt*12) : 0;
+}
+// 매달 초 적립 · 월 복리 시뮬레이션. pmtAt(month)는 그 달 적립액
+function simulate(start, monthlyRate, months, pmtAt){
+  let bal=start, paid=start; const rows=[];
+  for(let m=1;m<=months;m++){ const p=pmtAt(m); bal+=p; paid+=p; bal*=1+monthlyRate; rows.push({m, paid, bal}); }
+  return rows;
+}
+function yearlyRows(rows, extra){   // 12개월 단위 + 마지막 달
+  return rows.filter(r=>r.m%12===0 || r.m===rows.length).map(r=>extra(r));
+}
+
+function wireNewCalcs(){
+  const W = id=>document.getElementById(id);
+  if(W('btn_goal_calc').dataset.wired) return;
+  W('btn_goal_calc').dataset.wired='1';
+  // ---- 1. 목표금액 모으기 ----
+  W('goalMode').onchange = ()=>{ const t=W('goalMode').value==='term'; W('gcMonthsWrap').style.display=t?'none':''; W('gcPmtWrap').style.display=t?'':'none'; };
+  W('gcFill').onclick = ()=>{ const d=appSavingsDefaults(); setAmt(W('gcStart'), d.assets); setAmt(W('gcPmt'), d.save); };
+  W('btn_goal_calc').onclick = ()=>{
+    const mode=W('goalMode').value, T=numIn('gcTarget'), P0=numIn('gcStart'), r=numIn('gcRate'), infl=numIn('gcInfl');
+    const i=r/100/12;
+    if(!T){ alert('목표 금액을 입력해주세요.'); return; }
+    let n, pmt;
+    if(mode==='pmt'){
+      n = parseInt(W('gcMonths').value,10)||0; if(!n){ alert('기간(개월)을 입력해주세요.'); return; }
+      const g=Math.pow(1+i,n), fv0=P0*g;
+      pmt = fv0>=T ? 0 : (i>0 ? (T-fv0)*i/((g-1)*(1+i)) : (T-P0)/n);
+    } else {
+      pmt = numIn('gcPmt'); if(!pmt && P0<=0){ alert('월 적립액을 입력해주세요.'); return; }
+      let bal=P0; n=0; while(bal<T && n<1200){ n++; bal=(bal+pmt)*(1+i); }
+      if(bal<T){ alert('100년 안에 목표에 도달하지 못합니다. 월 적립액이나 수익률을 높여보세요.'); return; }
+    }
+    const rows = simulate(P0, i, n, ()=>pmt);
+    const last = rows[rows.length-1]||{paid:P0,bal:P0};
+    const end = new Date(); end.setMonth(end.getMonth()+n);
+    const realT = infl ? T/Math.pow(1+infl/100, n/12) : null;
+    finCards('goal', [
+      [mode==='pmt'?'필요한 월 적립액':'목표 도달까지', mode==='pmt'?won(Math.ceil(pmt)):`${Math.floor(n/12)}년 ${n%12}개월`, 'pos'],
+      ['도달 예상 시점', `${end.getFullYear()}년 ${end.getMonth()+1}월`],
+      ['총 납입 원금(보유액 포함)', won(Math.round(last.paid))],
+      ['예상 수익', won(Math.round(last.bal-last.paid)), 'pos'],
+      ...(realT!==null?[['목표 금액의 지금 돈 가치', won(Math.round(realT))]]:[])
+    ]);
+    const yr = yearlyRows(rows, r=>[Math.ceil(r.m/12)+'년차', r.m, Math.round(r.paid), Math.round(r.bal-r.paid), Math.round(r.bal), pctStr(Math.min(100,r.bal/T*100),1)]);
+    finTable('goal','연도별 진행', ['연차','개월','누적 원금','누적 수익','잔액','달성률'], yr, pmt===0&&mode==='pmt'?'지금 모아둔 돈만으로 기간 안에 목표에 도달합니다.':'', [1,2,3,4,5]);
+    finChart('goal',{type:'bar', stacked:true, data:{labels:yr.map(x=>x[0]), datasets:[
+      {label:'누적 원금', data:yr.map(x=>x[2]), backgroundColor:'#A9B8FF', stack:'s'},
+      {label:'누적 수익', data:yr.map(x=>x[3]), backgroundColor:'#9EE2B8', stack:'s'},
+      {type:'line', label:'목표 금액', data:yr.map(()=>T), borderColor:'#FF9AA2', borderDash:[6,4], pointRadius:0}]}});
+    finSetResult('goal',{title:'목표금액 모으기',
+      inputs:[['계산 방식',W('goalMode').selectedOptions[0].textContent],['목표 금액',T],['지금 모아둔 돈',P0],['예상 연 수익률(%)',r],[mode==='pmt'?'기간(개월)':'월 적립액',mode==='pmt'?n:pmt],['물가상승률(%)',infl||'']],
+      summary:[[mode==='pmt'?'필요한 월 적립액':'목표 도달 기간(개월)', mode==='pmt'?Math.ceil(pmt):n],['도달 예상 시점',`${end.getFullYear()}-${String(end.getMonth()+1).padStart(2,'0')}`],['총 납입 원금',Math.round(last.paid)],['예상 수익',Math.round(last.bal-last.paid)],['최종 잔액',Math.round(last.bal)],...(realT!==null?[['목표 금액의 지금 돈 가치',Math.round(realT)]]:[])],
+      tables:[{name:'연도별', header:['연차','개월','누적 원금','누적 수익','잔액','달성률'], rows:yr},
+              {name:'월별', header:['개월','적립액','누적 원금','잔액'], rows:rows.map(x=>[x.m, Math.round(pmt), Math.round(x.paid), Math.round(x.bal)])}]});
+  };
+  // ---- 2. 적립식 복리 ----
+  W('btn_compound_calc').onclick = ()=>{
+    const P0=numIn('ccStart'), pmt=numIn('ccPmt'), r=numIn('ccRate'), y=parseInt(W('ccYears').value,10)||0, g=numIn('ccGrow'), infl=numIn('ccInfl');
+    if(!y || (!P0 && !pmt)){ alert('투자 기간과 초기 투자금 또는 월 적립액을 입력해주세요.'); return; }
+    const i=r/100/12, pmtAt = m=> pmt*Math.pow(1+g/100, Math.floor((m-1)/12));
+    const rows = simulate(P0, i, y*12, pmtAt);
+    const last = rows[rows.length-1];
+    const real = infl ? last.bal/Math.pow(1+infl/100, y) : null;
+    finCards('compound', [['최종 금액', won(Math.round(last.bal)), 'pos'], ['총 납입 원금', won(Math.round(last.paid))], ['총 수익', won(Math.round(last.bal-last.paid)), 'pos'], ['수익률(원금 대비)', pctStr((last.bal/last.paid-1)*100,1)], ...(real!==null?[['최종 금액의 지금 돈 가치', won(Math.round(real))]]:[])]);
+    const yr = yearlyRows(rows, x=>{ const yy=Math.ceil(x.m/12); return [yy+'년차', Math.round(pmtAt(x.m)), Math.round(x.paid), Math.round(x.bal-x.paid), Math.round(x.bal), infl?Math.round(x.bal/Math.pow(1+infl/100,yy)):'-']; });
+    finTable('compound','연도별 자산', ['연차','그해 월 적립액','누적 원금','누적 수익','평가 금액','지금 돈 가치'], yr);
+    finChart('compound',{type:'bar', stacked:true, data:{labels:yr.map(x=>x[0]), datasets:[
+      {label:'누적 원금', data:yr.map(x=>x[2]), backgroundColor:'#A9B8FF', stack:'s'},
+      {label:'누적 수익', data:yr.map(x=>x[3]), backgroundColor:'#9EE2B8', stack:'s'}]}});
+    finSetResult('compound',{title:'적립식 복리 투자',
+      inputs:[['초기 투자금',P0],['월 적립액',pmt],['예상 연 수익률(%)',r],['투자 기간(년)',y],['월 적립액 연 증가율(%)',g||''],['물가상승률(%)',infl||'']],
+      summary:[['최종 금액',Math.round(last.bal)],['총 납입 원금',Math.round(last.paid)],['총 수익',Math.round(last.bal-last.paid)],...(real!==null?[['최종 금액의 지금 돈 가치',Math.round(real)]]:[])],
+      tables:[{name:'연도별', header:['연차','그해 월 적립액','누적 원금','누적 수익','평가 금액','지금 돈 가치'], rows:yr},
+              {name:'월별', header:['개월','적립액','누적 원금','평가 금액'], rows:rows.map(x=>[x.m,Math.round(pmtAt(x.m)),Math.round(x.paid),Math.round(x.bal)])}]});
+  };
+  // ---- 3. 거치 vs 적립 ----
+  W('btn_lumpvs_calc').onclick = ()=>{
+    const A=numIn('lvAmount'), r=numIn('lvRate'), n=parseInt(W('lvMonths').value,10)||0;
+    const H=Math.max(n, parseInt(W('lvHorizon').value,10)||n);
+    if(!A || !n){ alert('투자할 총 금액과 적립 기간을 입력해주세요.'); return; }
+    const i=r/100/12;
+    const lump = simulate(A, i, H, ()=>0);
+    const inst = simulate(0, i, H, m=> m<=n ? A/n : 0);
+    const L=lump[H-1].bal, I=inst[H-1].bal;
+    finCards('lumpvs', [['거치식 최종 금액', won(Math.round(L)), 'pos'], ['적립식 최종 금액', won(Math.round(I)), 'pos'], ['차이 (거치 − 적립)', (L-I>=0?'+':'')+won(Math.round(L-I))], ['투자 원금', won(A)]]);
+    const step = H<=24 ? 1 : 12;
+    const rows = []; for(let m=step; m<=H; m+=step) rows.push([m+'개월', Math.round(lump[m-1].bal), Math.round(inst[m-1].bal), Math.round(inst[m-1].paid), Math.round(lump[m-1].bal-inst[m-1].bal)]);
+    if(H%step) rows.push([H+'개월', Math.round(L), Math.round(I), Math.round(inst[H-1].paid), Math.round(L-I)]);
+    finTable('lumpvs', step===1?'월별 비교':'연도별 비교', ['시점','거치식 금액','적립식 금액','적립식 누적 납입','차이'], rows);
+    finChart('lumpvs',{type:'line', data:{labels:rows.map(x=>x[0]), datasets:[
+      {label:'거치식', data:rows.map(x=>x[1]), borderColor:'#A9B8FF', backgroundColor:'#A9B8FF', tension:.2},
+      {label:'적립식', data:rows.map(x=>x[2]), borderColor:'#FFB97A', backgroundColor:'#FFB97A', tension:.2}]}});
+    finSetResult('lumpvs',{title:'거치 vs 적립 비교',
+      inputs:[['투자할 총 금액',A],['예상 연 수익률(%)',r],['적립 기간(개월)',n],['비교 기간(개월)',H]],
+      summary:[['거치식 최종 금액',Math.round(L)],['적립식 최종 금액',Math.round(I)],['차이(거치−적립)',Math.round(L-I)]],
+      tables:[{name:'월별 비교', header:['개월','거치식 금액','적립식 금액','적립식 누적 납입','차이'], rows:lump.map((x,k)=>[x.m,Math.round(x.bal),Math.round(inst[k].bal),Math.round(inst[k].paid),Math.round(x.bal-inst[k].bal)])}]});
+  };
+  // ---- 4. 72법칙 ----
+  W('r72Mode').onchange = ()=>{ const t=W('r72Mode').value==='rate'; W('r72RateWrap').style.display=t?'none':''; W('r72YearsWrap').style.display=t?'':'none'; };
+  W('btn_rule72_calc').onclick = ()=>{
+    const mode=W('r72Mode').value, k=numIn('r72Mult')||2;
+    if(k<=1){ alert('목표 배수는 1보다 커야 합니다.'); return; }
+    const factor = 72*Math.log(k)/Math.log(2);   // 2배가 아니면 72법칙을 배수에 맞게 환산
+    let cards, summary, inputs;
+    if(mode==='years'){
+      const r=numIn('r72Rate'); if(r<=0){ alert('연 수익률을 입력해주세요.'); return; }
+      const approx=factor/r, exact=Math.log(k)/Math.log(1+r/100);
+      cards=[[`${k}배까지 (72법칙 어림)`, approx.toFixed(1)+'년'], [`${k}배까지 (정확한 값)`, exact.toFixed(1)+'년', 'pos'], ['개월로 환산', Math.ceil(exact*12)+'개월']];
+      inputs=[['계산 방식','수익률 → 기간'],['목표 배수',k],['연 수익률(%)',r]]; summary=[['72법칙 어림(년)',+approx.toFixed(2)],['정확한 값(년)',+exact.toFixed(2)]];
+    } else {
+      const y=numIn('r72Years'); if(y<=0){ alert('원하는 기간을 입력해주세요.'); return; }
+      const approx=factor/y, exact=(Math.pow(k,1/y)-1)*100;
+      cards=[['필요 연 수익률 (72법칙 어림)', pctStr(approx)], ['필요 연 수익률 (정확한 값)', pctStr(exact), 'pos']];
+      inputs=[['계산 방식','기간 → 수익률'],['목표 배수',k],['원하는 기간(년)',y]]; summary=[['72법칙 어림(%)',+approx.toFixed(3)],['정확한 값(%)',+exact.toFixed(3)]];
+    }
+    finCards('rule72', cards);
+    const rows=[1,2,3,4,5,6,7,8,9,10,12,15].map(r=>[r+'%', +(factor/r).toFixed(1), +(Math.log(k)/Math.log(1+r/100)).toFixed(1)]);
+    finTable('rule72', `수익률별 ${k}배 기간 (년)`, ['연 수익률','72법칙 어림','정확한 값'], rows.map(x=>[x[0], x[1].toFixed(1), x[2].toFixed(1)]));
+    document.getElementById('rule72ChartWrap').style.display='none';
+    finSetResult('rule72',{title:'72법칙',inputs, summary, tables:[{name:'수익률별 기간', header:['연 수익률','72법칙 어림(년)','정확한 값(년)'], rows}]});
+  };
+  // ---- 5. 실질가치 ----
+  W('btn_inflation_calc').onclick = ()=>{
+    const A=numIn('ifAmount'), p=numIn('ifRate'), y=parseInt(W('ifYears').value,10)||0;
+    if(!A || !y){ alert('금액과 기간을 입력해주세요.'); return; }
+    const f=Math.pow(1+p/100,y);
+    finCards('inflation', [[`${y}년 뒤 ${fmt(A)}원의 지금 가치`, won(Math.round(A/f)), 'neg'], [`지금 ${fmt(A)}원을 ${y}년 뒤에 사려면`, won(Math.round(A*f))], ['구매력 감소율', pctStr((1-1/f)*100,1)]]);
+    const rows=[]; for(let k=1;k<=y;k++){ const fk=Math.pow(1+p/100,k); rows.push([k+'년 후', Math.round(A/fk), Math.round(A*fk), pctStr((1-1/fk)*100,1)]); }
+    finTable('inflation','연도별', ['시점','미래 금액의 지금 가치','같은 것을 사려면 필요한 금액','구매력 감소'], rows);
+    finChart('inflation',{type:'line', data:{labels:rows.map(x=>x[0]), datasets:[
+      {label:'지금 가치', data:rows.map(x=>x[1]), borderColor:'#FF9AA2', backgroundColor:'#FF9AA2'},
+      {label:'필요한 금액', data:rows.map(x=>x[2]), borderColor:'#8FD3FE', backgroundColor:'#8FD3FE'}]}});
+    finSetResult('inflation',{title:'물가상승 반영 실질가치',
+      inputs:[['금액',A],['연 물가상승률(%)',p],['기간(년)',y]],
+      summary:[['미래 금액의 지금 가치',Math.round(A/f)],['같은 것을 사려면 필요한 금액',Math.round(A*f)],['구매력 감소율(%)',+((1-1/f)*100).toFixed(2)]],
+      tables:[{name:'연도별', header:['시점','미래 금액의 지금 가치','필요한 금액','구매력 감소'], rows}]});
+  };
+  // ---- 6. 은퇴자금 / FIRE ----
+  W('frFill').onclick = ()=>{ const d=appSavingsDefaults(); setAmt(W('frStart'), d.assets); setAmt(W('frPmt'), d.save); const sp=recent12Spend(); if(sp) setAmt(W('frSpend'), sp); };
+  W('btn_fire_calc').onclick = ()=>{
+    const E=numIn('frSpend'), w=numIn('frWithdraw')||4, P0=numIn('frStart'), pmt=numIn('frPmt'), r=numIn('frRate'), p=numIn('frInfl'), age=parseInt(W('frAge').value,10)||0;
+    if(!E){ alert('은퇴 후 연 생활비를 입력해주세요.'); return; }
+    const target = E/(w/100);
+    const realY = (1+r/100)/(1+p/100)-1, i = Math.pow(1+realY,1/12)-1;
+    let bal=P0, n=0; const rows=[];
+    while(bal<target && n<1200){ n++; bal=(bal+pmt)*(1+i); if(n%12===0) rows.push(n); }
+    const reached = bal>=target;
+    const sim = simulate(P0, i, Math.min(n, 1200), ()=>pmt);
+    const now = new Date();
+    finCards('fire', [
+      ['필요 은퇴자금 (지금 돈 기준)', won(Math.round(target))],
+      ['현재 달성률', pctStr(Math.min(100,P0/target*100),1), P0>=target?'pos':''],
+      ['도달까지', reached ? (n===0?'이미 도달':`${Math.floor(n/12)}년 ${n%12}개월`) : '100년 이상', reached?'pos':'neg'],
+      ...(reached&&n>0?[['도달 예상', `${now.getFullYear()+Math.floor((now.getMonth()+n)/12)}년${age?` (만 ${age+Math.ceil(n/12)}세 무렵)`:''}`]]:[]),
+      ['도달 시점 명목 금액', won(Math.round(target*Math.pow(1+p/100,n/12)))]
+    ]);
+    const yr = yearlyRows(sim, x=>{ const yy=Math.ceil(x.m/12); return [yy+'년차'+(age?` (${age+yy}세)`:''), Math.round(x.paid), Math.round(x.bal), pctStr(Math.min(100,x.bal/target*100),1)]; });
+    finTable('fire','연도별 진행 (지금 돈 기준)', ['연차','누적 저축(원금)','자산','달성률'], yr, `실질 연 수익률 ${pctStr(realY*100)} 기준 · 인출률 ${w}%면 생활비의 ${+(100/w).toFixed(1)}배가 필요합니다.`);
+    if(yr.length) finChart('fire',{type:'line', data:{labels:yr.map(x=>x[0]), datasets:[
+      {label:'자산(지금 돈 기준)', data:yr.map(x=>x[2]), borderColor:'#A9B8FF', backgroundColor:'rgba(169,184,255,.3)', fill:true, tension:.2},
+      {label:'필요 은퇴자금', data:yr.map(()=>Math.round(target)), borderColor:'#FF9AA2', borderDash:[6,4], pointRadius:0}]}});
+    finSetResult('fire',{title:'은퇴자금 / FIRE',
+      inputs:[['은퇴 후 연 생활비',E],['안전 인출률(%)',w],['현재 자산',P0],['월 저축액',pmt],['은퇴 전 연 수익률(%)',r],['물가상승률(%)',p],['현재 나이',age||'']],
+      summary:[['필요 은퇴자금(지금 돈 기준)',Math.round(target)],['실질 연 수익률(%)',+(realY*100).toFixed(3)],['도달까지(개월)',reached?n:'100년 이상'],['도달 시점 명목 금액',Math.round(target*Math.pow(1+p/100,n/12))]],
+      tables:[{name:'연도별', header:['연차','누적 저축(원금)','자산(지금 돈 기준)','달성률'], rows:yr}]});
+  };
+}
+
+// ---- 결과 → 표 데이터(요약 시트 + 상세 시트) ----
+function finSummaryAoa(r){
+  const aoa=[[r.title],['계산 일시', r.at.toLocaleString('ko-KR')],[],['입력값',''],...r.inputs,[],['결과',''],...r.summary];
+  (r.notes||[]).forEach(n=>{ aoa.push([]); aoa.push(['참고', n]); });
+  return aoa;
+}
+function finStamp(d){ const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; }
+function finExportXlsx(){
+  const r = FIN_LAST[FIN_CUR]; if(!r) return;
+  if(typeof XLSX==='undefined' || !XLSX.utils){ alert('엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.'); return; }
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(finSummaryAoa(r)); ws['!cols']=[{wch:30},{wch:22}];
+  XLSX.utils.book_append_sheet(wb, ws, '요약');
+  r.tables.forEach(t=>{ const s=XLSX.utils.aoa_to_sheet([t.header, ...t.rows]); s['!cols']=t.header.map(()=>({wch:16})); XLSX.utils.book_append_sheet(wb, s, t.name.slice(0,31)); });
+  XLSX.writeFile(wb, `${FIN_SHORT[FIN_CUR]}_${finStamp(r.at)}.xlsx`);
+}
+// 구글 시트: '가계부 계산 기록' 파일 하나에, 저장할 때마다 탭 추가 (요약 + 상세표를 한 탭에 위→아래로)
+const CALC_SHEET_TITLE = '가계부 계산 기록';
+async function sheetsFetch(token, url, opt){
+  const r = await fetch(url, Object.assign({}, opt, {headers:Object.assign({Authorization:'Bearer '+token,'Content-Type':'application/json'}, (opt&&opt.headers)||{})}));
+  if(!r.ok){ let msg=''; try{ msg=(await r.json()).error.message||''; }catch(_){ } const e=new Error(msg||('HTTP '+r.status)); e.status=r.status; throw e; }
+  return r.json();
+}
+async function finExportGsheet(){
+  const r = FIN_LAST[FIN_CUR]; if(!r) return;
+  if(!GOOGLE_CLIENT_ID || !driveConfigured()){ alert('구글 시트 저장은 Google Drive 연결 기능을 사용합니다. Google 로그인 모듈을 불러오지 못했거나 클라이언트 ID가 설정되지 않았습니다.'); return; }
+  if(!driveConnected()){ alert('먼저 왼쪽 메뉴의 「Google Drive 연결」로 연결한 뒤 다시 저장해주세요.'); return; }
+  const btn=document.getElementById('btnFinGsheet'), old=btn.textContent; btn.disabled=true; btn.textContent='저장 중…';
+  try{
+    const token = await driveEnsureToken(true);
+    const now = new Date(); const tab = `${FIN_SHORT[FIN_CUR]}_${finStamp(now)}${String(now.getSeconds()).padStart(2,'0')}`;   // 같은 결과를 두 번 저장해도 탭 이름이 겹치지 않도록 저장 시각(초 단위)
+    let id = S.calcSheetId, sheetId;
+    if(id){
+      try{ const res = await sheetsFetch(token, `https://sheets.googleapis.com/v4/spreadsheets/${id}:batchUpdate`, {method:'POST', body:JSON.stringify({requests:[{addSheet:{properties:{title:tab}}}]})});
+           sheetId = res.replies[0].addSheet.properties.sheetId; }
+      catch(e){ if(e.status===404 || e.status===403 && !/disabled|not been used/i.test(e.message)) id=null; else throw e; }
+    }
+    if(!id){
+      const res = await sheetsFetch(token, 'https://sheets.googleapis.com/v4/spreadsheets', {method:'POST', body:JSON.stringify({properties:{title:CALC_SHEET_TITLE}, sheets:[{properties:{title:tab}}]})});
+      id = res.spreadsheetId; sheetId = res.sheets[0].properties.sheetId; S.calcSheetId = id; save();
+    }
+    const aoa = finSummaryAoa(r); const boldRows=[0, 3, 5+r.inputs.length];
+    r.tables.forEach(t=>{ aoa.push([]); aoa.push([t.name]); boldRows.push(aoa.length-1); aoa.push(t.header); boldRows.push(aoa.length-1); t.rows.forEach(x=>aoa.push(x)); });
+    const values = aoa.map(row=>row.map(v=>v===undefined||v===null?'':v));
+    await sheetsFetch(token, `https://sheets.googleapis.com/v4/spreadsheets/${id}/values/${encodeURIComponent("'"+tab+"'!A1")}?valueInputOption=RAW`, {method:'PUT', body:JSON.stringify({values})});
+    const reqs = boldRows.map(rw=>({repeatCell:{range:{sheetId, startRowIndex:rw, endRowIndex:rw+1}, cell:{userEnteredFormat:{textFormat:{bold:true}}}, fields:'userEnteredFormat.textFormat.bold'}}));
+    reqs.push({repeatCell:{range:{sheetId, startColumnIndex:1, endColumnIndex:8}, cell:{userEnteredFormat:{numberFormat:{type:'NUMBER', pattern:'#,##0.##'}}}, fields:'userEnteredFormat.numberFormat'}});
+    reqs.push({autoResizeDimensions:{dimensions:{sheetId, dimension:'COLUMNS', startIndex:0, endIndex:8}}});
+    await sheetsFetch(token, `https://sheets.googleapis.com/v4/spreadsheets/${id}:batchUpdate`, {method:'POST', body:JSON.stringify({requests:reqs})}).catch(()=>{});
+    const url = `https://docs.google.com/spreadsheets/d/${id}/edit#gid=${sheetId}`;
+    if(confirm(`「${CALC_SHEET_TITLE}」 파일에 '${tab}' 탭으로 저장했습니다.\n지금 열어볼까요?`)) window.open(url, '_blank');
+  }catch(e){
+    if(/disabled|not been used|has not been enabled/i.test(e.message||'')) alert('Google Cloud 프로젝트에서 「Google Sheets API」가 꺼져 있습니다.\nGoogle Cloud Console → API 및 서비스 → 라이브러리에서 Google Sheets API를 「사용」으로 켠 뒤 몇 분 후 다시 시도해주세요.');
+    else alert('구글 시트 저장 중 오류가 발생했습니다: '+(e.message||e));
+  }finally{ btn.disabled=false; btn.textContent=old; }
+}
+document.getElementById('btnFinXlsx').onclick = finExportXlsx;
+document.getElementById('btnFinGsheet').onclick = ()=>{ finExportGsheet(); };
 
 // ---------- render all ----------
 function renderAll(){ renderYearSel(); renderMonFilters(); renderDash(); renderTx(); renderAsset(); renderCats(); }
