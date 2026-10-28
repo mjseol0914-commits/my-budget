@@ -1925,13 +1925,10 @@ function renderTxCatDetail(monthTxs){
         }
         const budget = getBudget(name, S.curYear, curMonth);
         const remain = budget - x.sum;
-        const pct = budget ? Math.min(100, x.sum/budget*100) : 0;
-        const budgetCell = budget
-          ? `${fmt(budget)}<div style="background:#e5e7eb;border-radius:4px;height:5px;overflow:hidden;margin-top:4px"><div style="background:${x.sum>budget?'#ef4444':'#4338ca'};height:100%;width:${pct}%"></div></div>`
-          : `<span style="color:#9ca3af">미설정</span>`;
-        const remainCell = budget
-          ? `<span style="color:${remain>=0?'#15803d':'#b91c1c'};font-weight:600">${fmt(remain)}</span>`
-          : `<span style="color:#9ca3af">-</span>`;
+        // 예산 0원도 '미설정'이 아닌 0원 예산으로 보고, 지출이 있으면 초과로 표시
+        const pct = budget > 0 ? Math.min(100, x.sum/budget*100) : (x.sum > 0 ? 100 : 0);
+        const budgetCell = `${fmt(budget)}<div style="background:#e5e7eb;border-radius:4px;height:5px;overflow:hidden;margin-top:4px"><div style="background:${x.sum>budget?'#ef4444':'#4338ca'};height:100%;width:${pct}%"></div></div>`;
+        const remainCell = `<span style="color:${remain>=0?'#15803d':'#b91c1c'};font-weight:600">${fmt(remain)}</span>`;
         h+=`<td>${colorDot(catColor(name,'exp'))}${esc(name)}</td><td class="num">${budgetCell}</td><td class="num">${fmt(x.sum)}</td><td class="num">${remainCell}</td><td class="num">${(x.sum/total*100).toFixed(1)}%</td>`;
         h+='</tr>';
       });
@@ -1944,9 +1941,9 @@ function renderTxCatDetail(monthTxs){
   if(Object.keys(by).length){
     h += `<tr style="font-weight:700;border-top:2px solid var(--line);background:#fafbfc">
       <td colspan="3">합계</td>
-      <td class="num">${budgetGrandTotal ? fmt(budgetGrandTotal) : '<span style="color:#9ca3af">-</span>'}</td>
+      <td class="num">${fmt(budgetGrandTotal)}</td>
       <td class="num">${fmt(grandTotal)}</td>
-      <td class="num">${budgetGrandTotal ? `<span style="color:${remainGrandTotal>=0?'#15803d':'#b91c1c'}">${fmt(remainGrandTotal)}</span>` : '<span style="color:#9ca3af">-</span>'}</td>
+      <td class="num"><span style="color:${remainGrandTotal>=0?'#15803d':'#b91c1c'}">${fmt(remainGrandTotal)}</span></td>
       <td class="num">${grandTotal?'100.0':'0.0'}%</td>
     </tr>`;
   }
