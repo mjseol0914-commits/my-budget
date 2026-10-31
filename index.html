@@ -8,7 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
-:root{--nav-w:190px;--bg:#f4f5f7;--card:#fff;--ink:#1f2328;--sub:#6b7280;--line:#e5e7eb;--blue:#3b82f6;--red:#ef4444;--green:#10b981;--violet:#8b5cf6;--amber:#f59e0b;--header-h:64px}
+:root{--nav-w:240px;--bg:#f4f5f7;--card:#fff;--ink:#1f2328;--sub:#6b7280;--line:#e5e7eb;--blue:#3b82f6;--red:#ef4444;--green:#10b981;--violet:#8b5cf6;--amber:#f59e0b;--header-h:64px}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
 header{background:#fff;border-bottom:1px solid var(--line);padding:12px 24px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:20;flex-wrap:wrap}
@@ -23,7 +23,7 @@ nav button.on{background:#eef2ff;color:#4338ca;font-weight:600}
 /* 상단 바 없이 좌측 사이드바 하나로: 가계부 → 년도 → 기준일 → 드라이브 연결 → 페이지 메뉴 */
 @media(min-width:801px){
   body{padding-left:var(--nav-w)}
-  header{position:fixed;left:0;top:0;bottom:0;width:var(--nav-w);flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:10px;padding:18px 12px;border-bottom:none;border-right:1px solid var(--line);overflow-y:auto}
+  header{position:fixed;left:0;top:0;bottom:0;width:var(--nav-w);flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:10px;padding:28px 16px;border-bottom:none;border-right:1px solid var(--line);overflow-y:auto}
   header h1{padding:0 4px}
   header select.year{width:100%}
   header .sub{flex-wrap:wrap}
@@ -32,24 +32,28 @@ nav button.on{background:#eef2ff;color:#4338ca;font-weight:600}
   header .drivebox{margin-left:0!important;flex-direction:column;align-items:stretch!important;gap:6px!important;padding-bottom:12px;border-bottom:1px solid var(--line)}
   header .drivebox .btn{width:100%}
   header #driveStatus{white-space:normal!important}
-  nav{flex-direction:column;flex-wrap:nowrap;gap:2px;flex-basis:auto}
-  nav button{text-align:left;width:100%}
+  nav{flex-direction:column;flex-wrap:nowrap;gap:3px;flex-basis:auto}
+  nav button{text-align:left;width:100%;padding:11px 12px}
   nav button:hover:not(.on){background:#f4f5f7}
 }
-main{max-width:1200px;margin:0 auto;padding:20px 24px 60px}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+main{max-width:1120px;margin:0 auto;padding:44px 28px 60px}
+@media(max-width:800px){main{padding:20px 24px 60px}}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:22px}
 .card .t{color:var(--sub);font-size:12px;margin-bottom:6px}
 .card .v{font-size:20px;font-weight:700}
 .card .d{font-size:12px;color:var(--sub);margin-top:4px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
 @media(max-width:800px){.grid2{grid-template-columns:1fr}}
-.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
 @media(max-width:1000px){.grid3{grid-template-columns:1fr}}
-.txlayout{display:grid;grid-template-columns:1fr 1.6fr;gap:12px;align-items:start;margin-bottom:12px}
-.txmain{display:flex;flex-direction:column;gap:12px}
+.txlayout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:20px;align-items:start;margin-bottom:20px}
+.txmain{display:flex;flex-direction:column;gap:20px}
 .txmain .cards{display:grid;grid-template-columns:repeat(3,1fr)}
 .txmain .cards .v{font-size:17px}
+.txmain .cards .card{padding:16px}
+.txmain>.grid2{grid-template-columns:minmax(0,1fr) auto;gap:14px}
+.txmain>.grid2>.panel{padding:14px}
 .txmain .cards .v{text-align:right}
 .calgrid .cal-day .di,.calgrid .cal-day .de{text-align:right}
 #momPanel{display:flex;flex-direction:column;min-height:0}
@@ -59,8 +63,8 @@ main{max-width:1200px;margin:0 auto;padding:20px 24px 60px}
 @media(max-width:900px){.txlayout{grid-template-columns:1fr}}
 .txlayout>.panel:last-child{display:flex;flex-direction:column;min-height:0}
 .txlayout>.panel:last-child>div:last-child{flex:1;min-height:0;overflow-y:auto}
-.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
-.panel h3{font-size:14px;margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:22px;margin-bottom:20px}
+.panel h3{font-size:14px;margin-bottom:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .chartbox{position:relative;height:280px}
 select,input[type=text],input[type=number],input[type=date]{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;background:#fff}
 button.btn{border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;background:#eef2ff;color:#4338ca;font-weight:600}
@@ -81,8 +85,8 @@ td.grip{cursor:grab;color:#c3c7cf;user-select:none;text-align:center;width:26px;
 td.grip:active{cursor:grabbing}
 .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th{text-align:left;color:var(--sub);font-weight:600;padding:8px;border-bottom:2px solid var(--line);white-space:nowrap}
-td{padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{text-align:left;color:var(--sub);font-weight:600;padding:0 10px 10px;border-bottom:2px solid var(--line);white-space:nowrap}
+td{padding:11px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
 td.num,th.num{text-align:right}
 #tblCat td,#tblCat th,#tblTxCat td,#tblTxCat th{padding:5px 8px}
 #tblTxCat td,#tblTxCat th{white-space:nowrap}
@@ -105,11 +109,12 @@ tr.addrow input,tr.addrow select{width:100%;font-size:12px;padding:5px 6px}
 #txTable th:nth-child(3),#txTable td:nth-child(3){width:9%}
 #txTable th:nth-child(4),#txTable td:nth-child(4){width:9%}
 #txTable th:nth-child(5),#txTable td:nth-child(5){width:20%;white-space:normal;word-break:break-word}
+#txTable tbody td:nth-child(5) span{max-width:100%!important}
 #txTable th:nth-child(6),#txTable td:nth-child(6){width:9%}
 #txTable th:nth-child(7),#txTable td:nth-child(7){width:7%}
 #txTable th:nth-child(8),#txTable td:nth-child(8){width:12%;white-space:normal;word-break:break-word}
 #txTable th:nth-child(9),#txTable td:nth-child(9){width:18%}
-#txTable thead th{background:#fafbfc;border-bottom:2px solid var(--line);text-align:center}
+#txTable thead th{background:#fafbfc;border-bottom:2px solid var(--line);text-align:center;padding:10px}
 /* 계좌별 거래내역: 컬럼 제목은 스크롤 영역 밖의 별도 표로 분리해 고정, 내역만 스크롤 (sticky는 환경에 따라 동작하지 않아 사용하지 않음) */
 #tblAcctLedgerHead,#tblAcctLedger{table-layout:fixed;min-width:560px}
 #tblAcctLedger td{white-space:normal;word-break:break-all}
@@ -261,7 +266,7 @@ tr.tgl-off .catname .nm{color:#9ca3af}
     <table id="txTable">
       <colgroup>
         <col style="width:110px"><col style="width:120px"><col style="width:100px"><col style="width:132px">
-        <col style="width:240px"><col style="width:100px"><col style="width:80px"><col style="width:140px"><col style="width:110px">
+        <col style="width:126px"><col style="width:100px"><col style="width:80px"><col style="width:140px"><col style="width:110px">
       </colgroup>
       <thead><tr><th>날짜</th><th>구분</th><th>계정</th><th class="num">금액</th><th>상세 내역</th><th>수단</th><th>계좌</th><th>비고</th><th></th></tr></thead>
       <tbody id="txBody"></tbody>
